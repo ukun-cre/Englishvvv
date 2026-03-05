@@ -7,37 +7,68 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>body{margin:0;padding:0;}*{box-sizing:border-box;}</style>
+  <style>
+    body{margin:0;padding:0;}*{box-sizing:border-box;}
+    input[type=text]{-webkit-appearance:none;}
+  </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
+/* ═══════════════ STYLES ═══════════════ */
 const G = `
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;700;900&family=Nunito:wght@700;800;900&display=swap');
-  @keyframes pop    {0%{transform:scale(.85);opacity:0}65%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
-  @keyframes shake  {0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
-  @keyframes fadeUp {from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes bounce {0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-  @keyframes pulse  {0%,100%{opacity:1}50%{opacity:.6}}
-  .pop{animation:pop .35s cubic-bezier(.34,1.56,.64,1) both}
+  @keyframes pop     {0%{transform:scale(.85);opacity:0}65%{transform:scale(1.07)}100%{transform:scale(1);opacity:1}}
+  @keyframes shake   {0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+  @keyframes fadeUp  {from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes bounce  {0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  @keyframes pulse   {0%,100%{opacity:1}50%{opacity:.55}}
+  @keyframes xpPop   {0%{transform:scale(0);opacity:1}70%{transform:scale(1.3) translateY(-28px);opacity:1}100%{transform:scale(1.1) translateY(-52px);opacity:0}}
+  @keyframes lvUp    {0%{transform:scale(0.4) rotate(-10deg);opacity:0}60%{transform:scale(1.18) rotate(3deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+  @keyframes firework{0%{transform:scale(0);opacity:1}100%{transform:scale(2.5);opacity:0}}
+  @keyframes combo   {0%{transform:scale(0.5) translateY(10px);opacity:0}60%{transform:scale(1.2) translateY(-4px);opacity:1}100%{transform:scale(1) translateY(0);opacity:1}}
+  @keyframes timerPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+  @keyframes streakFire{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.1) rotate(3deg)}}
+  @keyframes correctFlash{0%{background:rgba(16,185,129,.0)}30%{background:rgba(16,185,129,.18)}100%{background:rgba(16,185,129,.0)}}
+  @keyframes speakPulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.4)}50%{box-shadow:0 0 0 8px rgba(59,130,246,.0)}}
+  .pop{animation:pop .38s cubic-bezier(.34,1.56,.64,1) both}
   .shake{animation:shake .55s ease both}
   .fadeUp{animation:fadeUp .3s ease both}
-  .bounce{animation:bounce 1.8s ease infinite}
+  .bounce{animation:bounce 1.9s ease infinite}
   .pulse{animation:pulse 2s ease infinite}
-  button:active{transform:scale(.97)}
+  .xpFloat{animation:xpPop .95s ease forwards;position:fixed;z-index:9999;pointer-events:none;font-weight:900;font-size:24px;color:#FFD600;text-shadow:0 2px 10px rgba(0,0,0,.55);}
+  .lvUpAnim{animation:lvUp .55s cubic-bezier(.34,1.56,.64,1) both}
+  .comboAnim{animation:combo .45s cubic-bezier(.34,1.56,.64,1) both}
+  .streakFire{animation:streakFire 0.65s ease infinite}
+  .speakBtn{animation:speakPulse 2s ease infinite}
+  button:active{transform:scale(.96)}
   ::-webkit-scrollbar{width:4px}
-  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:99px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:99px}
+  input:focus{outline:none;}
 `;
-const F="'Noto Sans JP','Nunito',sans-serif";
-const SK={mistakes:"engram_v4_mistakes",history:"engram_history_v2",wordProg:"engram_word_progress"};
-const REVIEW_MS=72*3600*1000;
-const OC=["#3B82F6","#10B981","#F59E0B","#EF4444"];
-const OL=["A","B","C","D"];
-const CB=["#FFFDE7","#E3F2FD","#F3E5F5","#E8F5E9","#FCE4EC","#FFF8E1","#E8EAF6","#E0F2F1"];
+const F = "'Noto Sans JP','Nunito',sans-serif";
 
-const UM={
+/* ═══════════════ CONSTANTS ═══════════════ */
+const SK = {
+  mistakes:"engram_v4_mistakes", history:"engram_history_v2",
+  wordProg:"engram_word_progress", srs:"engram_srs_v1",
+  streak:"engram_streak_v1", xp:"engram_xp_v1",
+};
+const REVIEW_MS = 72*3600*1000;
+const OC = ["#3B82F6","#10B981","#F59E0B","#EF4444"];
+const OL = ["A","B","C","D"];
+const CB = ["#FFFDE7","#E3F2FD","#F3E5F5","#E8F5E9","#FCE4EC","#FFF8E1","#E8EAF6","#E0F2F1"];
+const XP_PER_CORRECT = 10;
+const XP_BONUS_STREAK = 5;
+const XP_LEVELS = [0,100,250,450,700,1000,1400,1900,2500,3200,4000];
+const getLevel = xp => { let l=1; for(let i=1;i<XP_LEVELS.length;i++){if(xp>=XP_LEVELS[i])l=i+1;} return l; };
+const getNextXP = xp => XP_LEVELS[getLevel(xp)] || XP_LEVELS[XP_LEVELS.length-1]+1000;
+const getLvPct = xp => { const l=getLevel(xp),base=XP_LEVELS[l-1]||0,next=XP_LEVELS[l]||XP_LEVELS[XP_LEVELS.length-1]+1000; return Math.round((xp-base)/(next-base)*100); };
+
+/* ═══════════════ MAPS ═══════════════ */
+const UM = {
   "単元1": {label:"単元1",title:"be動詞と一般動詞",emoji:"⚡",color:"#4F46E5",bg:"#EEF2FF",genres:["一般動詞","be動詞"],levelDesc:{Lv1:"肯定文",Lv2:"否定・疑問文",Lv3:"応用・混合"}},
   "単元2": {label:"単元2",title:"命令文",emoji:"📢",color:"#059669",bg:"#ECFDF5",genres:["命令文"],levelDesc:{Lv1:"肯定の命令文",Lv2:"Don't・Please",Lv3:"be動詞命令文"}},
   "単元3": {label:"単元3",title:"過去形",emoji:"⏰",color:"#B45309",bg:"#FEF3C7",genres:["過去形"],levelDesc:{Lv1:"過去形・肯定文",Lv2:"過去形・否定文",Lv3:"過去形・疑問文"}},
@@ -45,7 +76,7 @@ const UM={
   "単元5": {label:"単元5",title:"未来形",emoji:"🚀",color:"#0284C7",bg:"#E0F2FE",genres:["未来形"],levelDesc:{Lv1:"will・肯定文",Lv2:"be going to",Lv3:"否定・疑問文"}},
   "単元6": {label:"単元6",title:"There is/are",emoji:"📍",color:"#0F766E",bg:"#CCFBF1",genres:["There is/are"],levelDesc:{Lv1:"肯定文",Lv2:"否定文",Lv3:"疑問文"}},
   "単元7": {label:"単元7",title:"助動詞",emoji:"🛡️",color:"#0F766E",bg:"#CCFBF1",genres:["助動詞"],levelDesc:{Lv1:"must・may",Lv2:"have to",Lv3:"should"}},
-  "まとめ":{label:"まとめ",title:"単元1〜7 総復習",emoji:"🎯",color:"#6D28D9",bg:"#EDE9FE",genres:["まとめ"],levelDesc:{Lv1:"be動詞・一般動詞",Lv2:"過去・進行・未来",Lv3:"There is・助動詞"}},
+  "まとめ": {label:"まとめ",title:"単元1〜7 総復習",emoji:"🎯",color:"#6D28D9",bg:"#EDE9FE",genres:["まとめ"],levelDesc:{Lv1:"be動詞・一般動詞",Lv2:"過去・進行・未来",Lv3:"There is・助動詞"}},
   "単元8": {label:"単元8",title:"〜すること",emoji:"📌",color:"#C2410C",bg:"#FFEDD5",genres:["不定詞・動名詞"],levelDesc:{Lv1:"to不定詞",Lv2:"動名詞",Lv3:"前置詞＋動名詞"}},
   "単元9": {label:"単元9",title:"不定詞の応用",emoji:"🎯",color:"#4D7C0F",bg:"#ECFCCB",genres:["不定詞の応用"],levelDesc:{Lv1:"目的「〜するために」",Lv2:"感情の原因",Lv3:"名詞修飾"}},
   "単元10":{label:"単元10",title:"比較級・最上級",emoji:"⚖️",color:"#1D4ED8",bg:"#DBEAFE",genres:["比較級・最上級"],levelDesc:{Lv1:"比較級（er+than）",Lv2:"最上級（the+est）",Lv3:"不規則変化"}},
@@ -54,7 +85,7 @@ const UM={
   "単元13":{label:"単元13",title:"接続詞",emoji:"🔗",color:"#9A3412",bg:"#FFEDD5",genres:["接続詞"],levelDesc:{Lv1:"when・because",Lv2:"if（条件）",Lv3:"that・before・after"}},
   "単元14":{label:"単元14",title:"代名詞",emoji:"👤",color:"#6D28D9",bg:"#EDE9FE",genres:["代名詞"],levelDesc:{Lv1:"主格・所有格・目的格",Lv2:"所有代名詞",Lv3:"-thing系代名詞"}},
 };
-const GM={
+const GM = {
   "一般動詞":{color:"#4F46E5",bg:"#EEF2FF",emoji:"🏃"},
   "be動詞":{color:"#D97706",bg:"#FFF7ED",emoji:"🔵"},
   "命令文":{color:"#059669",bg:"#ECFDF5",emoji:"📢"},
@@ -72,8 +103,12 @@ const GM={
   "接続詞":{color:"#9A3412",bg:"#FFEDD5",emoji:"🔗"},
   "代名詞":{color:"#6D28D9",bg:"#EDE9FE",emoji:"👤"},
 };
-const LM={Lv1:{label:"Lv 1",color:"#059669",bg:"#D1FAE5"},Lv2:{label:"Lv 2",color:"#2563EB",bg:"#DBEAFE"},Lv3:{label:"Lv 3",color:"#DC2626",bg:"#FEE2E2"}};
-const PT=[
+const LM = {
+  Lv1:{label:"Lv 1",color:"#059669",bg:"#D1FAE5"},
+  Lv2:{label:"Lv 2",color:"#2563EB",bg:"#DBEAFE"},
+  Lv3:{label:"Lv 3",color:"#DC2626",bg:"#FEE2E2"}
+};
+const PT = [
   {subj:"I",poss:"my",obj:"me",pp:"mine",label:"私"},
   {subj:"You",poss:"your",obj:"you",pp:"yours",label:"あなた"},
   {subj:"He",poss:"his",obj:"him",pp:"his",label:"彼"},
@@ -82,15 +117,18 @@ const PT=[
   {subj:"We",poss:"our",obj:"us",pp:"ours",label:"私たち"},
   {subj:"They",poss:"their",obj:"them",pp:"theirs",label:"彼ら"},
 ];
-const WM=[
+const WM = [
   {key:"en2ja",label:"英語→日本語",emoji:"🇺🇸",desc:"英単語を見て日本語を4択で答える",color:"#3B82F6"},
   {key:"ja2en",label:"日本語→英語",emoji:"🇯🇵",desc:"日本語を見て英単語を4択で答える",color:"#8B5CF6"},
   {key:"spell",label:"スペルチェック",emoji:"⌨️",desc:"日本語を見て英単語をキーボードで入力する",color:"#DC2626"},
+  {key:"phrase",label:"フレーズ学習",emoji:"💬",desc:"フレーズ・例文でチャンクごと覚えよう",color:"#0F766E"},
 ];
 
+/* ═══════════════ UTILS ═══════════════ */
 function shuf(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
 function sLS(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 function lLS(k,d){try{const r=localStorage.getItem(k);return r?JSON.parse(r):d;}catch{return d;}}
+function todayKey(){const d=new Date();return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
 function parseExp(text){
   const r={},fi=text.indexOf("❌");
   r._correct=fi>=0?text.slice(0,fi).trim():text.trim();
@@ -98,45 +136,405 @@ function parseExp(text){
   return r;
 }
 
-/* ── Root ── */
+/* ═══════════════ SPEECH ═══════════════ */
+function speak(text,rate=0.85){
+  if(!window.speechSynthesis||!text)return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="en-US";u.rate=rate;u.pitch=1.0;
+  const voices=window.speechSynthesis.getVoices();
+  const v=voices.find(v=>v.lang.startsWith("en-US"))||voices.find(v=>v.lang.startsWith("en"));
+  if(v)u.voice=v;
+  window.speechSynthesis.speak(u);
+}
+
+/* ═══════════════ SRS ═══════════════ */
+function srsDefault(){return{ef:2.5,interval:1,reps:0,nextReview:Date.now()};}
+function srsUpdate(rec,grade){
+  let{ef,interval,reps}=rec;
+  if(grade<3){reps=0;interval=1;}
+  else{if(reps===0)interval=1;else if(reps===1)interval=6;else interval=Math.round(interval*ef);reps++;}
+  ef=Math.max(1.3,ef+0.1-(5-grade)*(0.08+(5-grade)*0.02));
+  return{ef,interval,reps,nextReview:Date.now()+interval*86400000};
+}
+function srsGrade(ok,ms){if(!ok)return 1;if(ms<3000)return 5;if(ms<6000)return 4;return 3;}
+function srsSortPool(pool,srsData){
+  const now=Date.now();
+  return [...pool].sort((a,b)=>{
+    const ra=srsData[a.id]||srsDefault();
+    const rb=srsData[b.id]||srsDefault();
+    const dueA=ra.nextReview<=now,dueB=rb.nextReview<=now;
+    if(dueA&&!dueB)return -1;if(!dueA&&dueB)return 1;
+    return ra.nextReview-rb.nextReview;
+  });
+}
+
+/* ═══════════════ EXPORT / IMPORT ═══════════════ */
+function exportData(){
+  const data={};
+  Object.values(SK).forEach(k=>{try{const v=localStorage.getItem(k);if(v)data[k]=JSON.parse(v);}catch{}});
+  data._exportedAt=new Date().toISOString();
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=`engram_backup_${todayKey()}.json`;a.click();URL.revokeObjectURL(url);
+}
+function importData(file,onDone){
+  const reader=new FileReader();
+  reader.onload=e=>{try{const data=JSON.parse(e.target.result);Object.values(SK).forEach(k=>{if(data[k]!==undefined)sLS(k,data[k]);});onDone(true);}catch{onDone(false);}};
+  reader.readAsText(file);
+}
+
+/* ═══════════════ SORT EXPLANATION ═══════════════ */
+function genSortExpl(q){
+  const answer=q.answer.filter(w=>w!==",");
+  const ruleMap={
+    "一般動詞":{"一般動詞・肯定文":"【語順】主語（S）＋ 動詞（V）＋ 目的語（O）が基本。三人称単数現在は動詞に -s/-es をつけます。","一般動詞・否定文":"【否定文】主語 ＋ do/does not ＋ 動詞の原形。三人称単数（He/She/It）は does not を使います。","一般動詞・疑問文":"【疑問文】Do/Does ＋ 主語 ＋ 動詞の原形 ＋ ?。三人称単数は Does を使います。"},
+    "be動詞":{"be動詞・肯定文":"【be動詞の使い分け】I → am / He・She・It → is / You・We・They → are を使います。","be動詞・否定文":"【be動詞否定文】be動詞の直後に not を置きます（am not / is not / are not）。","be動詞・疑問文":"【be動詞疑問文】be動詞を主語の前に移動させます（Are you...? / Is he...?）。","be動詞・混合":"【be動詞疑問文】be動詞を文頭に出し、主語の後に続ける語順です。"},
+    "命令文":{"命令文・肯定":"【命令文】主語（You）を省略し、動詞の原形で文を始めます。","命令文・否定":"【否定命令文】Don't ＋ 動詞の原形 で「〜してはいけない」を表します。","命令文・Please":"【丁寧な命令】Please を文頭に置くと丁寧な依頼になります。","be動詞命令文":"【be動詞命令文】Be ＋ 形容詞/名詞 の形で状態を命じます。"},
+    "過去形":{"過去形・規則動詞":"【規則動詞の過去形】語尾に -ed をつけます（play→played, visit→visited）。","過去形・不規則動詞":"【不規則動詞の過去形】語形変化を覚える必要があります（read→read, go→went）。","過去形・否定文":"【過去否定文】did not（didn't）＋ 動詞の原形 で作ります。","過去形・疑問文":"【過去疑問文】Did ＋ 主語 ＋ 動詞の原形 ＋ ? の語順です。"},
+    "過去進行形":{"過去進行形・肯定文":"【過去進行形】was/were ＋ 動詞ing 形で「〜していた」を表します。","過去進行形・否定文":"【過去進行形否定】was/were ＋ not ＋ 動詞ing の形です。","過去進行形・疑問文":"【過去進行形疑問】Was/Were を主語の前に出します。"},
+    "未来形":{"will・肯定文":"【will未来形】主語 ＋ will ＋ 動詞の原形 の語順です。","will・否定文":"【will否定文】will not（won't）＋ 動詞の原形 で作ります。","be going to・肯定":"【be going to】am/is/are ＋ going to ＋ 動詞の原形 の語順です。","未来形・疑問文":"【未来形疑問文】be動詞または Will を主語の前に出します。"},
+    "There is/are":{"There is・単数":"【There is構文】There is ＋ 単数名詞 ＋ 場所 の語順。「〜があります」を表します。","There are・複数":"【There are構文】There are ＋ 複数名詞 ＋ 場所 の語順です。","There is・否定文":"【否定】there is no ＋ 名詞 または there is not ＋ a ＋ 名詞 を使います。","There is・疑問文":"【疑問文】Is/Are there ＋ 名詞 ＋ 場所 ? の語順です。","There are・疑問文":"【数を尋ねる】How many ＋ 複数名詞 ＋ are there ＋ in/at ＋ 場所 ? の語順です。"},
+    "助動詞":{"must・義務":"【must】must ＋ 動詞の原形 で「〜しなければならない」を表します。","may・許可":"【may】May I ＋ 動詞の原形? で「〜してもいいですか」という許可の依頼です。","have to・義務":"【have to】have to ＋ 動詞の原形 = must と同じ「〜しなければならない」です。","don't have to":"【don't have to】「〜する必要はない」（must not とは全く違います）。","should・助言":"【should】should ＋ 動詞の原形 で「〜すべきだ・〜した方がよい」を表します。","助動詞・混合":"【助動詞の使い分け】must（義務）/ should（助言）/ may（許可）/ can（能力）を使い分けましょう。"},
+    "不定詞・動名詞":{"to不定詞・want":"【want to】want ＋ to ＋ 動詞の原形 で「〜したい」を表します。","to不定詞・hope":"【hope to】hope ＋ to ＋ 動詞の原形 で「〜することを望む」を表します。","to不定詞・like":"【like to / like -ing】どちらも「〜することが好き」を表せます。","動名詞・enjoy":"【enjoy の後は動名詞】enjoy の後には to不定詞ではなく 動詞ing を使います。","動名詞・finish":"【finish の後は動名詞】finish の後には to不定詞ではなく 動詞ing を使います。","前置詞＋動名詞":"【前置詞の後は動名詞】at, for, in, on などの前置詞の後には 動詞ing を使います。"},
+    "不定詞の応用":{"to不定詞・目的":"【目的を表すto不定詞】動詞の後に to ＋ 動詞の原形 を置き「〜するために」という目的を表します。","to不定詞・感情":"【感情の原因to不定詞】形容詞（glad/happy）の後に to ＋ 動詞の原形 で「〜して（嬉しい）」を表します。","to不定詞・名詞修飾":"【名詞修飾to不定詞】名詞の後に to ＋ 動詞の原形 を置き「〜するための（名詞）」を表します。"},
+    "比較級・最上級":{"比較級・er+than":"【比較級】形容詞に -er をつけ than を使います（tall → taller than）。","最上級・the+est":"【最上級】the ＋ 形容詞に -est をつけ in/of と使います（tall → the tallest in）。","不規則変化":"【不規則変化】good/well → better/best、bad → worse/worst のように特殊変化します。","不規則変化・最上級":"【不規則最上級】good/well → the best、many/much → the most のように変化します。"},
+    "比較の応用":{"more/most比較":"【more/most比較】3音節以上の形容詞には more/the most を使います。","more/most・最上級":"【the most最上級】the most ＋ 形容詞 ＋ in/of で最上級を作ります。","as...as・同等比較":"【as...as構文】as ＋ 形容詞/副詞 ＋ as で「〜と同じくらい」を表します。","not as...as":"【not as...as】not as ＋ 形容詞 ＋ as で「〜ほど...ではない」を表します。","like better":"【like...better than】better ＋ than で「〜より〜の方が好き」を表します。","like best":"【like...the best】the best ＋ of で「〜の中で一番好き」を表します。"},
+    "SVOO・感覚動詞":{"第4文型":"【第4文型SVOO】give/show/tell などは「動詞 ＋ 人 ＋ 物」の二重目的語を取ります。","to書き換え":"【to書き換え】give/show/send は「動詞 ＋ 物 ＋ to ＋ 人」に書き換えられます。","for書き換え":"【for書き換え】make/buy/cook は「動詞 ＋ 物 ＋ for ＋ 人」に書き換えられます。","感覚動詞+形容詞":"【感覚動詞＋形容詞】make/look/feel/sound などの後に形容詞を置きます（副詞ではありません）。"},
+    "接続詞":{"when・時":"【when節】when ＋ 主語 ＋ 動詞 で「〜するとき」という時間の従属節を作ります。","because・理由":"【because節】because ＋ 主語 ＋ 動詞 で「〜なので」という理由を表します。","if・条件":"【if節】if ＋ 主語 ＋ 動詞（現在形）で「もし〜なら」。未来のことでも現在形を使います！","that・目的語":"【that節】think/know/say の後に that ＋ 主語 ＋ 動詞 を置き目的語にします。","before・after":"【before/after節】before（〜の前に）/ after（〜した後に）＋ 主語 ＋ 動詞 の形です。"},
+    "代名詞":{"主格・目的格":"【人称代名詞】主格（I/he/she）は主語、目的格（me/him/her）は動詞や前置詞の後に使います。","所有格":"【所有格】my/his/her/their などは名詞の前に置き「〜の」を表します。","主格・所有格":"【人称代名詞の使い分け】文中の位置（主語/所有/目的）によって形が変わります。","所有代名詞":"【所有代名詞】mine/yours/his/hers/ours/theirs は「〜のもの」を表し、名詞の代わりに使います。","-thing系代名詞":"【-thing系代名詞】something（何か）/ nothing（何も〜ない）/ anything（何かを/何も）を使い分けます。"},
+    "まとめ":{"be動詞・一般動詞復習":"【動詞の使い分け】be動詞（状態・存在）と一般動詞（動作）を正しく使い分けましょう。","命令文復習":"【命令文の復習】Be動詞命令文と一般動詞命令文、否定命令文（Don't）を確認しましょう。","過去形・進行形復習":"【過去の表現】過去形（完了した動作）と過去進行形（継続中だった動作）の違いを意識しましょう。","未来形復習":"【未来形の復習】will（その場の判断）と be going to（計画・意図）の使い分けを確認しましょう。","総合復習":"【総合復習】これまでの文法を確認しましょう。語順・時制・助動詞に注意！"},
+  };
+  const genre=q.genre||"",topic=q.topic||"";
+  let rule="";
+  if(ruleMap[genre]&&ruleMap[genre][topic])rule=ruleMap[genre][topic];
+  else if(ruleMap[genre])rule=Object.values(ruleMap[genre])[0]||"";
+  const answer2=answer;
+  const breakdown=answer2.map((w,i)=>{
+    let role="";
+    if(i===0){if(["I","You","He","She","We","They","It"].includes(w))role="主語（S）";else if(["not","no"].includes(w.toLowerCase()))role="否定語";else role="文頭の語";}
+    else if(["not","no"].includes(w.toLowerCase()))role="否定語";
+    else if(["to","at","in","on","for","of","from","with","by","about","before","after","while","when","because","if","that"].includes(w.toLowerCase()))role="接続詞/前置詞";
+    else if(["a","an","the","my","your","his","her","our","their","its","this","that","some","any"].includes(w.toLowerCase()))role="冠詞/限定詞";
+    else if(i===1&&!role)role="動詞（V）";
+    return role?`「${w}」→${role}`:`「${w}」`;
+  }).join("　");
+  return{rule,breakdown,answerStr:answer2.join(" "),japanese:q.japanese};
+}
+
+/* ═══════════════ SHARED COMPONENTS ═══════════════ */
+function XPFloat({x,y,amount,onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,950);return()=>clearTimeout(t);},[]);
+  return <div className="xpFloat" style={{left:x,top:y}}>+{amount}XP</div>;
+}
+
+function StreakBadge({streak}){
+  if(!streak||streak<1)return null;
+  const fire=streak>=7?"🔥🔥":streak>=3?"🔥":"✨";
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:4,background:"linear-gradient(90deg,#FF6B35,#FF3D00)",borderRadius:99,padding:"3px 10px",boxShadow:"0 3px 12px rgba(255,61,0,.4)"}}>
+      <span className={streak>=3?"streakFire":""} style={{fontSize:13}}>{fire}</span>
+      <span style={{color:"#fff",fontWeight:900,fontSize:11,fontFamily:"'Nunito',sans-serif"}}>{streak}日連続</span>
+    </div>
+  );
+}
+
+function LevelBar({xp}){
+  const lv=getLevel(xp),pct=getLvPct(xp),next=getNextXP(xp);
+  return(
+    <div style={{background:"rgba(255,255,255,.08)",borderRadius:12,padding:"7px 12px",display:"flex",alignItems:"center",gap:10}}>
+      <div style={{width:34,height:34,borderRadius:99,background:"linear-gradient(135deg,#FFD600,#FF6B35)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:13,color:"#1A1A2E",flexShrink:0,boxShadow:"0 3px 10px rgba(255,214,0,.5)"}}>
+        {lv}
+      </div>
+      <div style={{flex:1}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+          <span style={{color:"#fff",fontWeight:900,fontSize:11}}>Lv.{lv}</span>
+          <span style={{color:"rgba(255,255,255,.4)",fontSize:9,fontWeight:700}}>{xp} / {next} XP</span>
+        </div>
+        <div style={{height:6,background:"rgba(255,255,255,.15)",borderRadius:99,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${pct}%`,background:"linear-gradient(90deg,#FFD600,#FF6B35)",borderRadius:99,transition:"width .9s ease"}}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── AI Chat Button (Gemini Integration) ── */
+function AiChatButton({question, answer}) {
+  const [open, setOpen] = React.useState(false);
+  const [userQ, setUserQ] = React.useState("もっと詳しく解説してください。");
+  const [done, setDone] = React.useState(false);
+
+  const promptText = `問題：\n${question}\n\n正解：\n${answer}\n\n質問：\n${userQ}\n\nこの英語の問題について、小学生・中学生にわかりやすく日本語で解説してください。`;
+
+  const handleOpenGemini = () => {
+    const doOpen = () => {
+      setDone(true);
+      setTimeout(() => { setDone(false); setOpen(false); }, 1800);
+      window.open("https://gemini.google.com/app", "_blank");
+    };
+    const doFallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = promptText;
+      ta.style.position = "fixed"; ta.style.left = "-9999px";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand("copy"); doOpen(); }
+      catch { alert("コピーに失敗しました。テキストを手動でコピーしてください。"); }
+      ta.remove();
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(promptText).then(doOpen).catch(doFallback);
+    } else { doFallback(); }
+  };
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)}
+        style={{
+          background:"linear-gradient(90deg,#10B981,#059669)", color:"#fff", fontWeight:900, fontSize:13, padding:"12px 0",
+          borderRadius:14, border:"none", cursor:"pointer", width:"100%", fontFamily:F,
+          marginTop:4, marginBottom:4, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+          boxShadow:"0 4px 12px rgba(16,185,129,0.35)"
+        }}>
+        <span style={{fontSize:18}}>🤖</span> AIに詳しく解説してもらう
+      </button>
+
+      {open && (
+        <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.6)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+          onClick={e => { if(e.target===e.currentTarget) setOpen(false); }}>
+          <div className="fadeUp" style={{background:"#fff",borderRadius:"22px 22px 0 0",padding:"22px 18px 36px",width:"100%",maxWidth:520,maxHeight:"88vh",overflowY:"auto"}}>
+
+            {/* ヘッダー */}
+            <div style={{display:"flex",alignItems:"center",marginBottom:14}}>
+              <span style={{fontSize:22}}>🤖</span>
+              <span style={{fontWeight:900,fontSize:16,color:"#1F2937",marginLeft:8,flex:1}}>AIに質問する</span>
+              <button onClick={() => setOpen(false)}
+                style={{background:"#F3F4F6",border:"none",borderRadius:99,width:32,height:32,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#6B7280"}}>×</button>
+            </div>
+
+            {/* 質問内容テキストエリア */}
+            <p style={{color:"#374151",fontWeight:700,fontSize:11,margin:"0 0 6px"}}>❓ AIへの質問内容（編集できます）</p>
+            <textarea value={userQ} onChange={e => setUserQ(e.target.value)} rows={3}
+              style={{width:"100%",border:"2px solid #D1D5DB",borderRadius:10,padding:"10px 12px",fontSize:13,fontWeight:700,fontFamily:F,color:"#1F2937",resize:"vertical",lineHeight:1.6,boxSizing:"border-box"}}/>
+
+            {/* プレビュー */}
+            <p style={{color:"#6B7280",fontWeight:700,fontSize:10,margin:"10px 0 5px"}}>📋 Geminiに送る内容（プレビュー）</p>
+            <div style={{background:"#F9FAFB",border:"1.5px solid #E5E7EB",borderRadius:10,padding:"10px 12px",fontSize:10,fontWeight:700,color:"#374151",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:130,overflowY:"auto"}}>
+              {promptText}
+            </div>
+
+            {/* ワンタップボタン */}
+            <button onClick={handleOpenGemini}
+              style={{
+                width:"100%", marginTop:14,
+                background: done ? "#059669" : "linear-gradient(90deg,#4285F4,#0F9D58)",
+                color:"#fff", fontWeight:900, fontSize:15, padding:"16px 0",
+                borderRadius:14, border:"none", cursor:"pointer", fontFamily:F,
+                boxShadow: done ? "0 4px 14px rgba(5,150,105,.4)" : "0 4px 14px rgba(66,133,244,.4)",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                transition:"all .2s"
+              }}>
+              <span style={{fontSize:20}}>{done ? "✅" : "🚀"}</span>
+              {done ? "コピー完了！Geminiが開きます" : "コピーしてGeminiを開く"}
+            </button>
+            <p style={{color:"#9CA3AF",fontSize:10,fontWeight:700,textAlign:"center",margin:"10px 0 0",lineHeight:1.7}}>
+              Geminiが開いたら入力欄に貼り付けて（Ctrl+V / ⌘+V）送信してください
+            </p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ── Big speak button ── */
+function SpeakButton({text,label="🔊 音声を聴く",color="#3B82F6",size="normal"}){
+  const [playing,setPlaying]=useState(false);
+  const handleClick=()=>{
+    speak(text,0.82);
+    setPlaying(true);
+    setTimeout(()=>setPlaying(false),2500);
+  };
+  const isLarge=size==="large";
+  return(
+    <button onClick={handleClick}
+      style={{
+        display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+        background:playing?`${color}ee`:color,
+        color:"#fff",fontWeight:900,
+        fontSize:isLarge?15:12,
+        padding:isLarge?"13px 0":"10px 0",
+        borderRadius:isLarge?14:10,
+        border:"none",cursor:"pointer",fontFamily:F,
+        width:"100%",
+        boxShadow:`0 4px 14px ${color}44`,
+        transform:playing?"scale(1.02)":"scale(1)",
+        transition:"all .2s",
+      }}>
+      <span style={{fontSize:isLarge?22:16}}>{playing?"🔈":"🔊"}</span>
+      {label}
+    </button>
+  );
+}
+
+/* ── Compact speak icon ── */
+function SpeakIcon({text,size=32}){
+  const [playing,setPlaying]=useState(false);
+  return(
+    <button onClick={e=>{e.stopPropagation();speak(text,0.82);setPlaying(true);setTimeout(()=>setPlaying(false),2200);}}
+      style={{
+        width:size,height:size,borderRadius:99,
+        background:playing?"#3B82F6":"rgba(59,130,246,.15)",
+        border:"2.5px solid #3B82F6",
+        display:"flex",alignItems:"center",justifyContent:"center",
+        cursor:"pointer",flexShrink:0,
+        fontSize:size*0.48,
+        transition:"all .2s",
+        transform:playing?"scale(1.12)":"scale(1)",
+        boxShadow:playing?"0 0 0 6px rgba(59,130,246,.2)":"none",
+      }}>{playing?"🔈":"🔊"}</button>
+  );
+}
+
+/* ── Combo display ── */
+function ComboDisplay({combo}){
+  if(combo<3)return null;
+  const tier=combo>=10?{label:"PERFECT!!",color:"#FFD600",bg:"linear-gradient(135deg,#FF6B35,#FFD600)"}
+            :combo>=6?{label:"AMAZING!",color:"#fff",bg:"linear-gradient(135deg,#8B5CF6,#EC4899)"}
+            :{label:"COMBO!",color:"#fff",bg:"linear-gradient(135deg,#059669,#3B82F6)"};
+  return(
+    <div className="comboAnim" style={{textAlign:"center",marginBottom:8}}>
+      <div style={{display:"inline-flex",alignItems:"center",gap:8,background:tier.bg,borderRadius:99,padding:"6px 18px",boxShadow:`0 4px 18px rgba(0,0,0,.25)`}}>
+        <span style={{fontSize:20}}>⚡</span>
+        <span style={{color:tier.color,fontWeight:900,fontSize:16,fontFamily:"'Nunito',sans-serif"}}>{combo}連続 {tier.label}</span>
+        <span style={{fontSize:20}}>⚡</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Firework celebration overlay ── */
+function Fireworks({show}){
+  if(!show)return null;
+  const dots=Array.from({length:16},(_,i)=>({
+    x:Math.random()*100,y:Math.random()*60,
+    color:["#FFD600","#FF6B35","#EC4899","#3B82F6","#10B981"][i%5],
+    delay:Math.random()*0.6,
+  }));
+  return(
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:8888,overflow:"hidden"}}>
+      {dots.map((d,i)=>(
+        <div key={i} style={{
+          position:"absolute",left:`${d.x}%`,top:`${d.y}%`,
+          width:12,height:12,borderRadius:99,
+          background:d.color,
+          animation:`firework .9s ${d.delay}s ease forwards`,
+          boxShadow:`0 0 6px ${d.color}`,
+        }}/>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════ ROOT APP ═══════════════ */
 function App({fillBank,sortBank,wordBank}){
   const [sc,setSc]=useState("main");
   const [hist,setHist]=useState(()=>lLS(SK.history,[]));
   const [fmist,setFmist]=useState(()=>lLS(SK.mistakes,{}));
   const [wprog,setWprog]=useState(()=>lLS(SK.wordProg,{}));
-  const addHist=useCallback(e=>{setHist(p=>{const n=[{...e,ts:Date.now()},...p].slice(0,300);sLS(SK.history,n);return n;});},[]);
+  const [srsData,setSrsData]=useState(()=>lLS(SK.srs,{}));
+  const [streakData,setStreakData]=useState(()=>lLS(SK.streak,{count:0,lastDay:""}));
+  const [xp,setXp]=useState(()=>lLS(SK.xp,0));
+  const [xpFloats,setXpFloats]=useState([]);
+  const [lvUpShow,setLvUpShow]=useState(false);
+
+  const touchStreak=useCallback(()=>{
+    const today=todayKey();
+    setStreakData(prev=>{
+      const d=new Date();d.setDate(d.getDate()-1);
+      const yesterday=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+      let count=prev.count||0;
+      if(prev.lastDay===today)return prev;
+      if(prev.lastDay===yesterday)count++;
+      else count=1;
+      const next={count,lastDay:today};sLS(SK.streak,next);return next;
+    });
+  },[]);
+
+  const addXP=useCallback((amount,evt)=>{
+    setXp(prev=>{
+      const next=prev+amount;
+      if(getLevel(next)>getLevel(prev)){setLvUpShow(true);setTimeout(()=>setLvUpShow(false),3200);}
+      sLS(SK.xp,next);return next;
+    });
+    if(evt){const id=Date.now()+"_"+Math.random();setXpFloats(p=>[...p,{id,x:evt.clientX-30,y:evt.clientY-20,amount}]);}
+  },[]);
+
+  const removeFloat=useCallback(id=>setXpFloats(p=>p.filter(f=>f.id!==id)),[]);
+  const addHist=useCallback(e=>{touchStreak();setHist(p=>{const n=[{...e,ts:Date.now()},...p].slice(0,300);sLS(SK.history,n);return n;});},[touchStreak]);
   const saveMist=useCallback(l=>{setFmist(l);sLS(SK.mistakes,l);},[]);
   const saveWP=useCallback(p=>{setWprog(p);sLS(SK.wordProg,p);},[]);
-  if(sc==="fill")    return <FillQuiz bank={fillBank} mist={fmist} setMist={saveMist} addHist={addHist} back={()=>setSc("main")}/>;
-  if(sc==="sort")    return <SortQuiz bank={sortBank} addHist={addHist} back={()=>setSc("main")}/>;
-  if(sc==="word")    return <WordQuiz bank={wordBank} wp={wprog} saveWP={saveWP} addHist={addHist} back={()=>setSc("main")}/>;
-  if(sc==="history") return <HistScreen hist={hist} fillBank={fillBank} fmist={fmist} back={()=>setSc("main")}/>;
-  return <MainMenu onSel={setSc} hist={hist} fmist={fmist}/>;
+  const saveSRS=useCallback(p=>{setSrsData(p);sLS(SK.srs,p);},[]);
+
+  const handleImport=useCallback(file=>{
+    importData(file,ok=>{
+      if(ok){
+        setHist(lLS(SK.history,[]));setFmist(lLS(SK.mistakes,{}));
+        setWprog(lLS(SK.wordProg,{}));setSrsData(lLS(SK.srs,{}));
+        setStreakData(lLS(SK.streak,{count:0,lastDay:""}));setXp(lLS(SK.xp,0));
+        alert("✅ データを復元しました！");
+      }else alert("❌ 読み込みに失敗しました。");
+    });
+  },[]);
+
+  return(
+    <>
+      <style>{G}</style>
+      {xpFloats.map(f=><XPFloat key={f.id} x={f.x} y={f.y} amount={f.amount} onDone={()=>removeFloat(f.id)}/>)}
+      {lvUpShow&&(
+        <div style={{position:"fixed",inset:0,zIndex:9998,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.55)",pointerEvents:"none"}}>
+          <div className="lvUpAnim" style={{background:"linear-gradient(135deg,#FFD600,#FF6B35)",borderRadius:24,padding:"28px 40px",textAlign:"center",boxShadow:"0 20px 60px rgba(255,107,53,.5)"}}>
+            <div style={{fontSize:60}}>🏆</div>
+            <div style={{color:"#fff",fontWeight:900,fontSize:26,fontFamily:"'Nunito',sans-serif",margin:"8px 0"}}>レベルアップ！</div>
+            <div style={{color:"rgba(255,255,255,.85)",fontWeight:700,fontSize:14}}>Lv.{getLevel(xp)} になりました！</div>
+          </div>
+        </div>
+      )}
+      {sc==="fill"    &&<FillQuiz bank={fillBank} mist={fmist} setMist={saveMist} addHist={addHist} addXP={addXP} back={()=>setSc("main")}/>}
+      {sc==="sort"    &&<SortQuiz bank={sortBank} addHist={addHist} addXP={addXP} back={()=>setSc("main")}/>}
+      {sc==="word"    &&<WordQuiz bank={wordBank} wp={wprog} saveWP={saveWP} srsData={srsData} saveSRS={saveSRS} addHist={addHist} addXP={addXP} back={()=>setSc("main")}/>}
+      {sc==="history" &&<HistScreen hist={hist} fillBank={fillBank} fmist={fmist} xp={xp} streak={streakData} onExport={exportData} onImport={handleImport} back={()=>setSc("main")}/>}
+      {sc==="main"    &&<MainMenu onSel={setSc} hist={hist} fmist={fmist} xp={xp} streak={streakData}/>}
+    </>
+  );
 }
 
-/* ── Main Menu ── */
-function MainMenu({onSel,hist,fmist}){
+/* ═══════════════ MAIN MENU ═══════════════ */
+function MainMenu({onSel,hist,fmist,xp,streak}){
   const rc=Object.entries(fmist).filter(([,ts])=>Date.now()-ts>=REVIEW_MS).length;
   const tq=hist.reduce((s,h)=>s+(h.total||0),0),tc=hist.reduce((s,h)=>s+(h.correct||0),0);
   const MODES=[
     {key:"fill",emoji:"✏️",label:"穴埋め問題",desc:"空欄に入る英語を4択から選ぼう",color:"#6366F1",g:"135deg,#6366F1,#8B5CF6"},
     {key:"sort",emoji:"🔀",label:"並べ替え問題",desc:"日本語を見て英単語を正しい順に並べよう",color:"#059669",g:"135deg,#059669,#10B981"},
-    {key:"word",emoji:"📖",label:"単語問題",desc:"英単語・日本語・スペルをマスターしよう",color:"#DC2626",g:"135deg,#DC2626,#F59E0B"},
+    {key:"word",emoji:"📖",label:"単語問題",desc:"英単語・フレーズ・スペルをマスターしよう",color:"#DC2626",g:"135deg,#DC2626,#F59E0B"},
   ];
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0F0C29,#302B63,#24243E)",fontFamily:F,padding:"20px 16px 44px",overflowY:"auto"}}>
-      <style>{G}</style>
       <div style={{maxWidth:480,margin:"0 auto"}}>
-        <div className="pop" style={{textAlign:"center",padding:"26px 0 20px"}}>
-          <div style={{fontSize:52}} className="bounce">📚</div>
-          <h1 style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:38,color:"#fff",margin:"6px 0 0",letterSpacing:"-1px"}}>ENG<span style={{color:"#FFD600"}}>GRAM</span></h1>
-          <p style={{color:"rgba(255,255,255,.4)",fontSize:12,fontWeight:700,margin:"5px 0 0"}}>英語学習トレーニングアプリ</p>
+        <div className="pop" style={{textAlign:"center",padding:"20px 0 14px"}}>
+          <div style={{fontSize:48}} className="bounce">📚</div>
+          <h1 style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:34,color:"#fff",margin:"5px 0 0",letterSpacing:"-1px"}}>ENG<span style={{color:"#FFD600"}}>GRAM</span></h1>
+          <p style={{color:"rgba(255,255,255,.4)",fontSize:11,fontWeight:700,margin:"4px 0 0"}}>英語学習トレーニングアプリ</p>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:10,alignItems:"center"}}>
+          {streak.count>0&&<StreakBadge streak={streak.count}/>}
+          <div style={{flex:1}}><LevelBar xp={xp}/></div>
         </div>
         {tq>0&&(
-          <div className="fadeUp" style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.09)",borderRadius:16,padding:"12px 0",marginBottom:14,display:"flex"}}>
+          <div className="fadeUp" style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.09)",borderRadius:14,padding:"10px 0",marginBottom:10,display:"flex"}}>
             {[{l:"総問題数",v:tq+"問"},{l:"正解数",v:tc+"問"},{l:"正答率",v:tq?Math.round(tc/tq*100)+"%":"—"}].map((s,i)=>(
               <div key={i} style={{flex:1,textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,.08)":"none"}}>
-                <div style={{color:"#FFD600",fontWeight:900,fontSize:18,fontFamily:"'Nunito',sans-serif"}}>{s.v}</div>
+                <div style={{color:"#FFD600",fontWeight:900,fontSize:16,fontFamily:"'Nunito',sans-serif"}}>{s.v}</div>
                 <div style={{color:"rgba(255,255,255,.4)",fontSize:10,fontWeight:700}}>{s.l}</div>
               </div>
             ))}
@@ -144,40 +542,41 @@ function MainMenu({onSel,hist,fmist}){
         )}
         {rc>0&&(
           <button onClick={()=>onSel("fill")} className="pulse"
-            style={{width:"100%",background:"linear-gradient(90deg,#F59E0B,#EF4444)",border:"none",borderRadius:16,padding:"11px 16px",marginBottom:12,cursor:"pointer",display:"flex",alignItems:"center",gap:11,boxShadow:"0 6px 20px rgba(239,68,68,.4)",fontFamily:F}}>
-            <span style={{fontSize:26}}>🔁</span>
+            style={{width:"100%",background:"linear-gradient(90deg,#F59E0B,#EF4444)",border:"none",borderRadius:14,padding:"10px 14px",marginBottom:10,cursor:"pointer",display:"flex",alignItems:"center",gap:10,boxShadow:"0 6px 20px rgba(239,68,68,.4)",fontFamily:F}}>
+            <span style={{fontSize:24}}>🔁</span>
             <div style={{textAlign:"left"}}>
-              <p style={{color:"#fff",fontWeight:900,fontSize:13,margin:0}}>復習モードで練習しよう！</p>
-              <p style={{color:"rgba(255,255,255,.85)",fontSize:11,fontWeight:700,margin:"2px 0 0"}}>{rc}問が復習待ちです（72時間経過）</p>
+              <p style={{color:"#fff",fontWeight:900,fontSize:12,margin:0}}>復習モードで練習しよう！</p>
+              <p style={{color:"rgba(255,255,255,.8)",fontSize:10,fontWeight:700,margin:"1px 0 0"}}>{rc}問が復習待ちです（72時間経過）</p>
             </div>
-            <span style={{marginLeft:"auto",color:"#fff",fontSize:20}}>›</span>
+            <span style={{marginLeft:"auto",color:"#fff",fontSize:18}}>›</span>
           </button>
         )}
-        <div style={{display:"flex",flexDirection:"column",gap:11,marginBottom:12}}>
+        <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:10}}>
           {MODES.map((m,i)=>(
             <button key={m.key} className="fadeUp" onClick={()=>onSel(m.key)}
-              style={{animationDelay:`${i*70}ms`,background:"rgba(255,255,255,.055)",border:"1px solid rgba(255,255,255,.09)",borderRadius:20,padding:"16px 17px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,fontFamily:F,width:"100%",textAlign:"left"}}>
-              <div style={{width:50,height:50,borderRadius:14,background:`linear-gradient(${m.g})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0,boxShadow:`0 4px 14px ${m.color}55`}}>{m.emoji}</div>
+              style={{animationDelay:`${i*60}ms`,background:"rgba(255,255,255,.055)",border:"1px solid rgba(255,255,255,.09)",borderRadius:18,padding:"14px 15px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,fontFamily:F,width:"100%",textAlign:"left"}}>
+              <div style={{width:48,height:48,borderRadius:13,background:`linear-gradient(${m.g})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0,boxShadow:`0 4px 14px ${m.color}55`}}>{m.emoji}</div>
               <div style={{flex:1}}>
-                <p style={{color:"#fff",fontWeight:900,fontSize:16,margin:"0 0 2px",fontFamily:"'Nunito',sans-serif"}}>{m.label}</p>
-                <p style={{color:"rgba(255,255,255,.45)",fontSize:11,fontWeight:700,margin:0}}>{m.desc}</p>
+                <p style={{color:"#fff",fontWeight:900,fontSize:15,margin:"0 0 2px",fontFamily:"'Nunito',sans-serif"}}>{m.label}</p>
+                <p style={{color:"rgba(255,255,255,.4)",fontSize:10,fontWeight:700,margin:0}}>{m.desc}</p>
               </div>
-              <span style={{color:m.color,fontSize:22}}>›</span>
+              <span style={{color:m.color,fontSize:20}}>›</span>
             </button>
           ))}
         </div>
         <button onClick={()=>onSel("history")}
-          style={{width:"100%",background:"rgba(255,255,255,.055)",border:"1px solid rgba(255,255,255,.1)",borderRadius:14,padding:"12px 0",cursor:"pointer",color:"rgba(255,255,255,.6)",fontWeight:900,fontSize:13,fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
-          📊 学習履歴・達成度を見る
+          style={{width:"100%",background:"rgba(255,255,255,.055)",border:"1px solid rgba(255,255,255,.1)",borderRadius:13,padding:"11px 0",cursor:"pointer",color:"rgba(255,255,255,.6)",fontWeight:900,fontSize:12,fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+          📊 学習履歴・達成度・データ管理
         </button>
       </div>
     </div>
   );
 }
 
-/* ── History ── */
-function HistScreen({hist,fillBank,fmist,back}){
+/* ═══════════════ HISTORY SCREEN ═══════════════ */
+function HistScreen({hist,fillBank,fmist,xp,streak,onExport,onImport,back}){
   const [tab,setTab]=useState("summary");
+  const fileRef=useRef();
   const MC={fill:"#6366F1",sort:"#059669",word:"#DC2626"};
   const ML={fill:"✏️ 穴埋め",sort:"🔀 並べ替え",word:"📖 単語"};
   const bm={};hist.forEach(h=>{if(!bm[h.mode])bm[h.mode]={total:0,correct:0,sess:0};bm[h.mode].total+=h.total||0;bm[h.mode].correct+=h.correct||0;bm[h.mode].sess+=1;});
@@ -189,156 +588,129 @@ function HistScreen({hist,fillBank,fmist,back}){
     return{k,total:dh.reduce((s,h)=>s+(h.total||0),0),correct:dh.reduce((s,h)=>s+(h.correct||0),0)};
   });
   const mx=Math.max(...days.map(d=>d.total),1);
-  const mids=Object.keys(fmist);
-  const mqs=fillBank.filter(q=>mids.includes(q.id));
-  const rw=mqs.filter(q=>Date.now()-fmist[q.id]>=REVIEW_MS);
+  const mids=Object.keys(fmist),mqs=fillBank.filter(q=>mids.includes(q.id)),rw=mqs.filter(q=>Date.now()-fmist[q.id]>=REVIEW_MS);
+
   return(
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#0F0C29,#302B63,#24243E)",fontFamily:F,padding:"16px 16px 44px",overflowY:"auto"}}>
-      <style>{G}</style>
       <div style={{maxWidth:480,margin:"0 auto"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:12}}>
           <button onClick={back} style={{background:"rgba(255,255,255,.1)",border:"none",color:"#fff",fontWeight:900,fontSize:12,padding:"6px 12px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← 戻る</button>
-          <h2 style={{color:"#fff",fontWeight:900,fontSize:19,margin:0,fontFamily:"'Nunito',sans-serif"}}>📊 学習履歴</h2>
+          <h2 style={{color:"#fff",fontWeight:900,fontSize:17,margin:0}}>📊 学習履歴</h2>
+          <div style={{marginLeft:"auto"}}><StreakBadge streak={streak.count}/></div>
         </div>
-        <div style={{display:"flex",gap:5,marginBottom:14,background:"rgba(255,255,255,.07)",borderRadius:13,padding:3}}>
-          {[["summary","まとめ"],["unit","単元達成度"],["daily","日別"],["mistakes","間違い"]].map(([k,l])=>(
+        <LevelBar xp={xp}/>
+        <div style={{display:"flex",gap:4,margin:"10px 0 12px",background:"rgba(255,255,255,.07)",borderRadius:12,padding:3}}>
+          {[["summary","まとめ"],["unit","単元"],["daily","日別"],["mistakes","間違い"],["data","データ"]].map(([k,l])=>(
             <button key={k} onClick={()=>setTab(k)}
-              style={{flex:1,background:tab===k?"#fff":"transparent",color:tab===k?"#1F2937":"rgba(255,255,255,.5)",fontWeight:900,fontSize:11,padding:"7px 0",borderRadius:9,border:"none",cursor:"pointer",fontFamily:F}}>{l}</button>
+              style={{flex:1,background:tab===k?"#fff":"transparent",color:tab===k?"#1F2937":"rgba(255,255,255,.5)",fontWeight:900,fontSize:10,padding:"7px 0",borderRadius:8,border:"none",cursor:"pointer",fontFamily:F}}>{l}</button>
           ))}
         </div>
-        {tab==="summary"&&(
-          <div className="fadeUp">
-            {hist.length===0?(
-              <div style={{textAlign:"center",padding:"60px 0"}}>
-                <div style={{fontSize:56}}>🎯</div>
-                <p style={{color:"rgba(255,255,255,.4)",fontWeight:700,fontSize:14,marginTop:12}}>まだ学習記録がありません<br/>問題を解いてみましょう！</p>
-              </div>
-            ):(
-              <>
-                <div style={{background:"rgba(255,255,255,.07)",borderRadius:16,padding:14,marginBottom:10}}>
-                  <p style={{color:"rgba(255,255,255,.45)",fontWeight:900,fontSize:11,margin:"0 0 10px"}}>🌟 全体統計</p>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
-                    {[{l:"セッション",v:hist.length+"回"},{l:"総問題数",v:hist.reduce((s,h)=>s+(h.total||0),0)+"問"},{l:"総正解数",v:hist.reduce((s,h)=>s+(h.correct||0),0)+"問"}].map((s,i)=>(
-                      <div key={i} style={{background:"rgba(255,255,255,.06)",borderRadius:11,padding:"11px 6px",textAlign:"center"}}>
-                        <div style={{color:"#FFD600",fontWeight:900,fontSize:16,fontFamily:"'Nunito',sans-serif"}}>{s.v}</div>
-                        <div style={{color:"rgba(255,255,255,.4)",fontSize:10,fontWeight:700,marginTop:2,lineHeight:1.3}}>{s.l}</div>
-                      </div>
-                    ))}
-                  </div>
+
+        {tab==="summary"&&<div className="fadeUp">
+          {hist.length===0?<div style={{textAlign:"center",padding:"50px 0"}}><div style={{fontSize:52}}>🎯</div><p style={{color:"rgba(255,255,255,.4)",fontWeight:700,fontSize:13,marginTop:10}}>まだ学習記録がありません！<br/>問題を解いてみましょう！</p></div>:(
+            <>
+              <div style={{background:"rgba(255,255,255,.07)",borderRadius:14,padding:12,marginBottom:10}}>
+                <p style={{color:"rgba(255,255,255,.45)",fontWeight:900,fontSize:10,margin:"0 0 9px"}}>🌟 全体統計</p>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                  {[{l:"セッション",v:hist.length+"回"},{l:"総問題数",v:hist.reduce((s,h)=>s+(h.total||0),0)+"問"},{l:"総正解数",v:hist.reduce((s,h)=>s+(h.correct||0),0)+"問"}].map((s,i)=>(
+                    <div key={i} style={{background:"rgba(255,255,255,.06)",borderRadius:10,padding:"10px 5px",textAlign:"center"}}>
+                      <div style={{color:"#FFD600",fontWeight:900,fontSize:15,fontFamily:"'Nunito',sans-serif"}}>{s.v}</div>
+                      <div style={{color:"rgba(255,255,255,.4)",fontSize:9,fontWeight:700,marginTop:1}}>{s.l}</div>
+                    </div>
+                  ))}
                 </div>
-                {Object.entries(bm).map(([mode,st])=>{
-                  const pct=st.total?Math.round(st.correct/st.total*100):0,col=MC[mode]||"#6B7280";
-                  return(
-                    <div key={mode} style={{background:"rgba(255,255,255,.055)",border:`1px solid ${col}33`,borderRadius:14,padding:"13px 14px",marginBottom:9}}>
-                      <div style={{display:"flex",alignItems:"center",marginBottom:7}}>
-                        <span style={{color:"#fff",fontWeight:900,fontSize:13,flex:1}}>{ML[mode]||mode}</span>
-                        <span style={{color:col,fontWeight:900,fontSize:19,fontFamily:"'Nunito',sans-serif"}}>{pct}%</span>
-                      </div>
-                      <div style={{height:7,background:"rgba(255,255,255,.1)",borderRadius:99,marginBottom:5}}>
-                        <div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:99,transition:"width 1s"}}/>
-                      </div>
-                      <span style={{color:"rgba(255,255,255,.35)",fontSize:10,fontWeight:700}}>{st.sess}回 / {st.correct}/{st.total}問正解</span>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-          </div>
-        )}
-        {tab==="unit"&&(
-          <div className="fadeUp">
-            {Object.keys(bu).length===0?(
-              <div style={{textAlign:"center",padding:"60px 0"}}>
-                <p style={{color:"rgba(255,255,255,.4)",fontWeight:700,fontSize:13}}>穴埋め問題を解くと単元別達成度が表示されます</p>
               </div>
-            ):(
-              Object.entries(bu).sort(([a],[b])=>a.localeCompare(b)).map(([unit,st])=>{
-                const pct=st.total?Math.round(st.correct/st.total*100):0;
-                const col=pct>=80?"#10B981":pct>=60?"#F59E0B":"#EF4444";
-                return(
-                  <div key={unit} style={{background:"rgba(255,255,255,.055)",borderRadius:13,padding:"11px 13px",marginBottom:7}}>
-                    <div style={{display:"flex",alignItems:"center",marginBottom:5}}>
-                      <span style={{color:"#fff",fontWeight:900,fontSize:13,flex:1}}>{unit}</span>
-                      <span style={{color:col,fontWeight:900,fontSize:15,fontFamily:"'Nunito',sans-serif"}}>{pct}%</span>
-                      <span style={{marginLeft:6,fontSize:14}}>{pct>=80?"🌟":pct>=60?"👍":"📖"}</span>
-                    </div>
-                    <div style={{height:6,background:"rgba(255,255,255,.1)",borderRadius:99}}>
-                      <div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:99,transition:"width 1s"}}/>
-                    </div>
-                    <span style={{color:"rgba(255,255,255,.3)",fontSize:10,fontWeight:700,marginTop:3,display:"block"}}>{st.correct}/{st.total}問正解</span>
+              {Object.entries(bm).map(([mode,st])=>{const pct=st.total?Math.round(st.correct/st.total*100):0,col=MC[mode]||"#6B7280";return(
+                <div key={mode} style={{background:"rgba(255,255,255,.055)",border:`1px solid ${col}33`,borderRadius:13,padding:"11px 13px",marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",marginBottom:6}}>
+                    <span style={{color:"#fff",fontWeight:900,fontSize:12,flex:1}}>{ML[mode]||mode}</span>
+                    <span style={{color:col,fontWeight:900,fontSize:18,fontFamily:"'Nunito',sans-serif"}}>{pct}%</span>
                   </div>
-                );
-              })
-            )}
-          </div>
-        )}
-        {tab==="daily"&&(
-          <div className="fadeUp">
-            <div style={{background:"rgba(255,255,255,.07)",borderRadius:16,padding:"14px 10px"}}>
-              <p style={{color:"rgba(255,255,255,.45)",fontWeight:900,fontSize:11,margin:"0 0 14px"}}>📅 過去7日間の学習量</p>
-              <div style={{display:"flex",alignItems:"flex-end",gap:5,height:100,paddingBottom:3}}>
-                {days.map((d,i)=>{
-                  const h=d.total?Math.max(8,Math.round(d.total/mx*86)):3;
-                  const hc=d.correct?Math.round(d.correct/mx*86):0;
-                  return(
-                    <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                      <span style={{color:"rgba(255,255,255,.45)",fontSize:9,fontWeight:700}}>{d.total||""}</span>
-                      <div style={{width:"100%",position:"relative",height:h,borderRadius:"4px 4px 0 0",overflow:"hidden"}}>
-                        <div style={{position:"absolute",bottom:0,left:0,right:0,height:h,background:"rgba(99,102,241,.5)",borderRadius:"4px 4px 0 0"}}/>
-                        {hc>0&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:hc,background:"#FFD600",opacity:.7}}/>}
-                      </div>
-                      <span style={{color:"rgba(255,255,255,.35)",fontSize:9,fontWeight:700,lineHeight:1.2,textAlign:"center"}}>{d.k}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{display:"flex",gap:12,marginTop:8}}>
-                <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:9,height:9,background:"rgba(99,102,241,.5)",borderRadius:2}}/><span style={{color:"rgba(255,255,255,.35)",fontSize:10,fontWeight:700}}>問題数</span></div>
-                <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:9,height:9,background:"#FFD600",opacity:.7,borderRadius:2}}/><span style={{color:"rgba(255,255,255,.35)",fontSize:10,fontWeight:700}}>正解数</span></div>
-              </div>
+                  <div style={{height:7,background:"rgba(255,255,255,.1)",borderRadius:99,marginBottom:4}}><div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:99,transition:"width 1s"}}/></div>
+                  <span style={{color:"rgba(255,255,255,.35)",fontSize:9,fontWeight:700}}>{st.sess}回 / {st.correct}/{st.total}問正解</span>
+                </div>
+              );})}
+            </>
+          )}
+        </div>}
+
+        {tab==="unit"&&<div className="fadeUp">
+          {Object.keys(bu).length===0?<div style={{textAlign:"center",padding:"50px 0"}}><p style={{color:"rgba(255,255,255,.4)",fontWeight:700,fontSize:12}}>穴埋め問題を解くと単元別達成度が表示されます</p></div>:(
+            Object.entries(bu).sort(([a],[b])=>a.localeCompare(b)).map(([unit,st])=>{
+              const pct=st.total?Math.round(st.correct/st.total*100):0,col=pct>=80?"#10B981":pct>=60?"#F59E0B":"#EF4444";
+              return(<div key={unit} style={{background:"rgba(255,255,255,.055)",borderRadius:12,padding:"10px 12px",marginBottom:6}}>
+                <div style={{display:"flex",alignItems:"center",marginBottom:4}}>
+                  <span style={{color:"#fff",fontWeight:900,fontSize:12,flex:1}}>{unit}</span>
+                  <span style={{color:col,fontWeight:900,fontSize:14,fontFamily:"'Nunito',sans-serif"}}>{pct}%</span>
+                  <span style={{marginLeft:5,fontSize:13}}>{pct>=80?"🌟":pct>=60?"👍":"📖"}</span>
+                </div>
+                <div style={{height:6,background:"rgba(255,255,255,.1)",borderRadius:99}}><div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:99,transition:"width 1s"}}/></div>
+                <span style={{color:"rgba(255,255,255,.3)",fontSize:9,fontWeight:700,marginTop:2,display:"block"}}>{st.correct}/{st.total}問正解</span>
+              </div>);
+            })
+          )}
+        </div>}
+
+        {tab==="daily"&&<div className="fadeUp">
+          <div style={{background:"rgba(255,255,255,.07)",borderRadius:14,padding:"13px 9px"}}>
+            <p style={{color:"rgba(255,255,255,.45)",fontWeight:900,fontSize:10,margin:"0 0 12px"}}>📅 過去7日間の学習量</p>
+            <div style={{display:"flex",alignItems:"flex-end",gap:4,height:100,paddingBottom:3}}>
+              {days.map((d,i)=>{const h=d.total?Math.max(8,Math.round(d.total/mx*86)):3,hc=d.correct?Math.round(d.correct/mx*86):0;return(
+                <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                  <span style={{color:"rgba(255,255,255,.45)",fontSize:9,fontWeight:700}}>{d.total||""}</span>
+                  <div style={{width:"100%",position:"relative",height:h,borderRadius:"4px 4px 0 0",overflow:"hidden"}}>
+                    <div style={{position:"absolute",bottom:0,left:0,right:0,height:h,background:"rgba(99,102,241,.5)",borderRadius:"4px 4px 0 0"}}/>
+                    {hc>0&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:hc,background:"#FFD600",opacity:.7}}/>}
+                  </div>
+                  <span style={{color:"rgba(255,255,255,.35)",fontSize:8,fontWeight:700,textAlign:"center"}}>{d.k}</span>
+                </div>
+              );})}
             </div>
           </div>
-        )}
-        {tab==="mistakes"&&(
-          <div className="fadeUp">
-            {rw.length>0&&<div style={{background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:12,padding:"9px 12px",marginBottom:10}}><p style={{color:"#FCA5A5",fontWeight:900,fontSize:12,margin:0}}>🔁 復習待ち：{rw.length}問（72時間経過済み）</p></div>}
-            {mqs.length===0?(
-              <div style={{textAlign:"center",padding:"60px 0"}}>
-                <div style={{fontSize:56}}>🎉</div>
-                <p style={{color:"rgba(255,255,255,.4)",fontWeight:700,fontSize:14,marginTop:12}}>間違えた問題はありません！<br/>素晴らしい！</p>
-              </div>
-            ):(
-              <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                {mqs.map(q=>{
-                  const ms=Date.now()-fmist[q.id],ready=ms>=REVIEW_MS,hl=Math.max(0,Math.ceil((REVIEW_MS-ms)/3600000));
-                  const gm=GM[q.genre]||{};
-                  return(
-                    <div key={q.id} style={{background:"rgba(255,255,255,.055)",border:`1px solid ${ready?"rgba(239,68,68,.4)":"rgba(255,255,255,.07)"}`,borderRadius:13,padding:"11px 13px"}}>
-                      <div style={{display:"flex",alignItems:"flex-start",gap:9}}>
-                        <span style={{fontSize:20,flexShrink:0}}>{q.emoji}</span>
-                        <div style={{flex:1,minWidth:0}}>
-                          <p style={{color:"#fff",fontWeight:700,fontSize:12,margin:"0 0 2px",lineHeight:1.5,wordBreak:"break-word"}}>{q.sentence}</p>
-                          <p style={{color:gm.color||"#6366F1",fontWeight:900,fontSize:14,margin:"0 0 5px",fontFamily:"'Nunito',sans-serif"}}>{q.english}</p>
-                          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                            <span style={{background:gm.bg||"#EEF2FF",color:gm.color||"#4F46E5",fontSize:9,fontWeight:900,padding:"2px 7px",borderRadius:99}}>{q.genre}</span>
-                            <span style={{color:ready?"#FCA5A5":"rgba(255,255,255,.3)",fontSize:9,fontWeight:700}}>{ready?"🔁 復習待ち":`⏳ あと${hl}時間`}</span>
-                          </div>
-                        </div>
+        </div>}
+
+        {tab==="mistakes"&&<div className="fadeUp">
+          {rw.length>0&&<div style={{background:"rgba(239,68,68,.15)",border:"1px solid rgba(239,68,68,.3)",borderRadius:11,padding:"8px 11px",marginBottom:9}}><p style={{color:"#FCA5A5",fontWeight:900,fontSize:11,margin:0}}>🔁 復習待ち：{rw.length}問（72時間経過済み）</p></div>}
+          {mqs.length===0?<div style={{textAlign:"center",padding:"50px 0"}}><div style={{fontSize:52}}>🎉</div><p style={{color:"rgba(255,255,255,.4)",fontWeight:700,fontSize:13,marginTop:10}}>間違えた問題はありません！素晴らしい！</p></div>:(
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {mqs.map(q=>{const ms=Date.now()-fmist[q.id],ready=ms>=REVIEW_MS,hl=Math.max(0,Math.ceil((REVIEW_MS-ms)/3600000)),gm=GM[q.genre]||{};return(
+                <div key={q.id} style={{background:"rgba(255,255,255,.055)",border:`1px solid ${ready?"rgba(239,68,68,.4)":"rgba(255,255,255,.07)"}`,borderRadius:12,padding:"10px 12px"}}>
+                  <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                    <span style={{fontSize:18,flexShrink:0}}>{q.emoji}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{color:"#fff",fontWeight:700,fontSize:11,margin:"0 0 2px",lineHeight:1.5,wordBreak:"break-word"}}>{q.sentence}</p>
+                      <p style={{color:gm.color||"#6366F1",fontWeight:900,fontSize:13,margin:"0 0 4px",fontFamily:"'Nunito',sans-serif"}}>{q.english}</p>
+                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                        <span style={{background:gm.bg||"#EEF2FF",color:gm.color||"#4F46E5",fontSize:9,fontWeight:900,padding:"2px 7px",borderRadius:99}}>{q.genre}</span>
+                        <span style={{color:ready?"#FCA5A5":"rgba(255,255,255,.3)",fontSize:9,fontWeight:700}}>{ready?"🔁 復習待ち":`⏳ あと${hl}時間`}</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+                </div>
+              );})}
+            </div>
+          )}
+        </div>}
+
+        {tab==="data"&&<div className="fadeUp">
+          <div style={{background:"rgba(255,255,255,.07)",borderRadius:14,padding:"14px",marginBottom:10}}>
+            <p style={{color:"rgba(255,255,255,.45)",fontWeight:900,fontSize:11,margin:"0 0 12px"}}>💾 データ管理</p>
+            <button onClick={onExport} style={{width:"100%",background:"linear-gradient(90deg,#059669,#10B981)",color:"#fff",fontWeight:900,fontSize:13,padding:"13px 0",borderRadius:12,border:"none",cursor:"pointer",fontFamily:F,marginBottom:9,boxShadow:"0 4px 14px rgba(5,150,105,.35)"}}>⬇️ データをバックアップ（JSONダウンロード）</button>
+            <input ref={fileRef} type="file" accept=".json" style={{display:"none"}} onChange={e=>{if(e.target.files[0])onImport(e.target.files[0]);}}/>
+            <button onClick={()=>fileRef.current.click()} style={{width:"100%",background:"linear-gradient(90deg,#2563EB,#6366F1)",color:"#fff",fontWeight:900,fontSize:13,padding:"13px 0",borderRadius:12,border:"none",cursor:"pointer",fontFamily:F,boxShadow:"0 4px 14px rgba(37,99,235,.35)"}}>⬆️ データを復元（JSONインポート）</button>
           </div>
-        )}
+          <div style={{background:"rgba(255,255,255,.07)",borderRadius:14,padding:"13px"}}>
+            <p style={{color:"rgba(255,255,255,.45)",fontWeight:900,fontSize:10,margin:"0 0 9px"}}>⚠️ データについて</p>
+            <p style={{color:"rgba(255,255,255,.5)",fontSize:11,fontWeight:700,lineHeight:1.8,margin:0}}>・学習データはブラウザのlocalStorageに保存されます<br/>・ブラウザのキャッシュクリアでデータが消えることがあります<br/>・定期的にバックアップを取ることをお勧めします</p>
+          </div>
+        </div>}
       </div>
     </div>
   );
 }
 
-/* ── Fill Quiz ── */
-function FillQuiz({bank,mist,setMist,addHist,back}){
+/* ═══════════════ FILL QUIZ ═══════════════ */
+function FillQuiz({bank,mist,setMist,addHist,addXP,back}){
   const [sub,setSub]=useState("home");
   const [au,setAu]=useState("単元1");
   const [queue,setQueue]=useState([]);
@@ -351,182 +723,230 @@ function FillQuiz({bank,mist,setMist,addHist,back}){
   const [shaking,setShaking]=useState(false);
   const [sg,setSg]=useState(null);
   const [sl,setSl]=useState(null);
-  const [streak,setStreak]=useState(0);
+  const [combo,setCombo]=useState(0);
   const [showPron,setShowPron]=useState(false);
   const [rm,setRm]=useState(false);
+  const [showFireworks,setShowFireworks]=useState(false);
+  const PRAISE=["すごい！🌟","やったね！🎊","かんぺき！✨","さすが！🏆","大正解！🎯","ばっちり！💫","よくできました！⭐","天才！🧠"];
+  const RETRY=["もう一回チャレンジ！💪","ドンマイ！😊","惜しい！🔥","次はできるよ！⭐","練習あるのみ！📚"];
+  const [praiseIdx]=useState(()=>Math.floor(Math.random()*8));
+  const [retryIdx]=useState(()=>Math.floor(Math.random()*5));
   const rc=Object.entries(mist).filter(([,ts])=>Date.now()-ts>=REVIEW_MS).length;
   const gc=(g,l)=>bank.filter(q=>q.genre===g&&q.level===l).length;
   const guc=(uk)=>{const um=UM[uk];return bank.filter(q=>um.genres.includes(q.genre)).length;};
+
+  const handleBack = useCallback(() => { setSub("home"); },[]);
+  const handleBackToMenu = useCallback(() => { back(); },[back]);
+
   const start=useCallback((genre,level)=>{
     const rIds=Object.entries(mist).filter(([,ts])=>Date.now()-ts>=REVIEW_MS).map(([id])=>id);
     let pool=[...bank];if(genre)pool=pool.filter(q=>q.genre===genre);if(level)pool=pool.filter(q=>q.level===level);
     pool=shuf(pool);const rQs=pool.filter(q=>rIds.includes(q.id)),nQs=pool.filter(q=>!rIds.includes(q.id));
     setRm(rQs.length>0);setQueue(rQs.length>0?[...rQs,...nQs]:nQs);setSg(genre);setSl(level);
-    setIdx(0);setScore({c:0,t:0});setPhase("question");setSel(null);setResult(null);setShowAll(false);setStreak(0);setShowPron(false);setSub("quiz");
+    setIdx(0);setScore({c:0,t:0});setPhase("question");setSel(null);setResult(null);setShowAll(false);setCombo(0);setShowPron(false);setSub("quiz");
   },[bank,mist]);
+
+  const q=queue[idx];
   const um=UM[au];
+
   if(sub==="home") return(
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#6366F1,#8B5CF6,#EC4899)",fontFamily:F,padding:"16px 16px 32px",overflowY:"auto"}}>
-      <style>{G}</style>
       <div style={{maxWidth:480,margin:"0 auto"}}>
-        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:13}}>
+        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:12}}>
           <button onClick={back} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:12,padding:"6px 12px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← メニュー</button>
-          <h2 style={{color:"#fff",fontWeight:900,fontSize:17,margin:0}}>✏️ 穴埋め問題</h2>
+          <h2 style={{color:"#fff",fontWeight:900,fontSize:16,margin:0}}>✏️ 穴埋め問題</h2>
         </div>
-        {rc>0&&<button onClick={()=>start(null,null)} style={{width:"100%",background:"#FFF3CD",border:"3px solid #F59E0B",borderRadius:14,padding:"10px 14px",marginBottom:11,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:22}}>🔁</span><div style={{textAlign:"left"}}><p style={{color:"#92400E",fontWeight:900,fontSize:13,margin:0}}>復習モードで練習する</p><p style={{color:"#B45309",fontSize:11,fontWeight:700,margin:"1px 0 0"}}>{rc}問が復習待ちです</p></div><span style={{marginLeft:"auto",color:"#D97706",fontSize:17}}>→</span>
+        {rc>0&&<button onClick={()=>start(null,null)} style={{width:"100%",background:"#FFF3CD",border:"3px solid #F59E0B",borderRadius:13,padding:"9px 13px",marginBottom:10,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:9}}>
+          <span style={{fontSize:20}}>🔁</span><div style={{textAlign:"left"}}><p style={{color:"#92400E",fontWeight:900,fontSize:12,margin:0}}>復習モードで練習する</p><p style={{color:"#B45309",fontSize:10,fontWeight:700,margin:"1px 0 0"}}>{rc}問が復習待ちです</p></div><span style={{marginLeft:"auto",color:"#D97706",fontSize:16}}>→</span>
         </button>}
-        <div style={{overflowX:"auto",marginBottom:11,WebkitOverflowScrolling:"touch"}}>
-          <div style={{display:"flex",gap:7,width:"max-content",paddingBottom:4}}>
+        <div style={{overflowX:"auto",marginBottom:10,WebkitOverflowScrolling:"touch"}}>
+          <div style={{display:"flex",gap:6,width:"max-content",paddingBottom:3}}>
             {Object.entries(UM).map(([key,meta])=>{const a=au===key,h=guc(key)>0;return(
-              <button key={key} onClick={()=>{if(h)setAu(key);}} style={{background:a?"#fff":h?"rgba(255,255,255,.18)":"rgba(255,255,255,.07)",border:a?`3px solid ${meta.color}`:`2px solid ${h?"rgba(255,255,255,.35)":"rgba(255,255,255,.15)"}`,borderRadius:14,padding:"9px 11px",cursor:h?"pointer":"default",textAlign:"center",fontFamily:F,minWidth:85,flexShrink:0,opacity:h?1:0.45}}>
-                <div style={{fontSize:17,marginBottom:2}}>{meta.emoji}</div>
-                <div style={{fontWeight:900,fontSize:11,color:a?meta.color:"#fff",whiteSpace:"nowrap"}}>{meta.label}</div>
-                <div style={{fontSize:9,color:a?"#374151":"#D1D5DB",fontWeight:700,lineHeight:1.3,marginBottom:3,maxWidth:78,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{meta.title}</div>
-                <div style={{background:a?meta.color:h?"rgba(255,255,255,.35)":"rgba(255,255,255,.15)",color:"#fff",fontSize:9,fontWeight:900,borderRadius:99,padding:"2px 7px",display:"inline-block"}}>{h?`${guc(key)}問`:"準備中"}</div>
+              <button key={key} onClick={()=>{if(h)setAu(key);}} style={{background:a?"#fff":h?"rgba(255,255,255,.18)":"rgba(255,255,255,.07)",border:a?`3px solid ${meta.color}`:`2px solid ${h?"rgba(255,255,255,.35)":"rgba(255,255,255,.15)"}`,borderRadius:13,padding:"8px 10px",cursor:h?"pointer":"default",textAlign:"center",fontFamily:F,minWidth:80,flexShrink:0,opacity:h?1:0.45}}>
+                <div style={{fontSize:15,marginBottom:1}}>{meta.emoji}</div>
+                <div style={{fontWeight:900,fontSize:10,color:a?meta.color:"#fff",whiteSpace:"nowrap"}}>{meta.label}</div>
+                <div style={{fontSize:8,color:a?"#374151":"#D1D5DB",fontWeight:700,lineHeight:1.3,marginBottom:2,maxWidth:74,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{meta.title}</div>
+                <div style={{background:a?meta.color:h?"rgba(255,255,255,.35)":"rgba(255,255,255,.15)",color:"#fff",fontSize:8,fontWeight:900,borderRadius:99,padding:"2px 6px",display:"inline-block"}}>{h?`${guc(key)}問`:"準備中"}</div>
               </button>
             );})}
           </div>
         </div>
-        <div style={{background:"rgba(255,255,255,.97)",borderRadius:20,padding:"16px 14px",boxShadow:"0 8px 32px rgba(0,0,0,.16)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:9,paddingBottom:13,marginBottom:13,borderBottom:"2px solid #F3F4F6"}}>
-            <div style={{width:38,height:38,borderRadius:11,background:um.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{um.emoji}</div>
-            <div><p style={{color:um.color,fontWeight:900,fontSize:14,margin:0}}>{um.label}：{um.title}</p><p style={{color:"#6B7280",fontSize:11,fontWeight:700,margin:"2px 0 0"}}>レベルを選んで練習しよう</p></div>
+        <div style={{background:"rgba(255,255,255,.97)",borderRadius:18,padding:"14px 13px",boxShadow:"0 8px 32px rgba(0,0,0,.16)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,paddingBottom:11,marginBottom:11,borderBottom:"2px solid #F3F4F6"}}>
+            <div style={{width:36,height:36,borderRadius:10,background:um.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{um.emoji}</div>
+            <div><p style={{color:um.color,fontWeight:900,fontSize:13,margin:0}}>{um.label}：{um.title}</p><p style={{color:"#6B7280",fontSize:10,fontWeight:700,margin:"1px 0 0"}}>レベルを選んで練習しよう</p></div>
           </div>
           {um.genres.map(genre=>{const gm=GM[genre];return(
-            <div key={genre} style={{marginBottom:13}}>
-              {um.genres.length>1&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}><span style={{fontSize:15}}>{gm.emoji}</span><span style={{fontWeight:900,fontSize:12,color:gm.color}}>{genre}</span><div style={{flex:1,height:2,background:gm.color,opacity:.18,borderRadius:99}}/></div>}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+            <div key={genre} style={{marginBottom:12}}>
+              {um.genres.length>1&&<div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}><span style={{fontSize:13}}>{gm.emoji}</span><span style={{fontWeight:900,fontSize:11,color:gm.color}}>{genre}</span><div style={{flex:1,height:2,background:gm.color,opacity:.18,borderRadius:99}}/></div>}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
                 {["Lv1","Lv2","Lv3"].map(level=>{const lm=LM[level],cnt=gc(genre,level),locked=cnt===0;return(
                   <button key={level} disabled={locked} onClick={()=>start(genre,level)}
-                    style={{background:locked?"#F9FAFB":lm.bg,border:`2.5px solid ${locked?"#E5E7EB":lm.color}`,borderRadius:13,padding:"9px 5px",cursor:locked?"not-allowed":"pointer",textAlign:"center",opacity:locked?0.45:1,fontFamily:F}}>
-                    <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:16,color:locked?"#9CA3AF":lm.color}}>{lm.label}</div>
-                    <div style={{fontSize:9,color:locked?"#9CA3AF":"#374151",fontWeight:700,margin:"2px 0 4px",lineHeight:1.3}}>{um.levelDesc[level]}</div>
-                    <div style={{background:locked?"#E5E7EB":lm.color,color:"#fff",fontWeight:900,fontSize:10,borderRadius:99,padding:"2px 7px",display:"inline-block"}}>{locked?"準備中":`${cnt}問`}</div>
+                    style={{background:locked?"#F9FAFB":lm.bg,border:`2.5px solid ${locked?"#E5E7EB":lm.color}`,borderRadius:12,padding:"8px 4px",cursor:locked?"not-allowed":"pointer",textAlign:"center",opacity:locked?0.45:1,fontFamily:F}}>
+                    <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:14,color:locked?"#9CA3AF":lm.color}}>{lm.label}</div>
+                    <div style={{fontSize:8,color:locked?"#9CA3AF":"#374151",fontWeight:700,margin:"2px 0 3px",lineHeight:1.3}}>{um.levelDesc[level]}</div>
+                    <div style={{background:locked?"#E5E7EB":lm.color,color:"#fff",fontWeight:900,fontSize:9,borderRadius:99,padding:"2px 6px",display:"inline-block"}}>{locked?"準備中":`${cnt}問`}</div>
                   </button>
                 );})}
               </div>
             </div>
           );})}
           <button onClick={()=>start(um.genres.length===1?um.genres[0]:null,null)}
-            style={{width:"100%",background:`linear-gradient(90deg,${um.color},${um.color}bb)`,color:"#fff",fontWeight:900,fontSize:13,padding:"12px 0",borderRadius:13,border:"none",cursor:"pointer",fontFamily:F,marginTop:3,boxShadow:`0 4px 14px ${um.color}44`}}>
+            style={{width:"100%",background:`linear-gradient(90deg,${um.color},${um.color}bb)`,color:"#fff",fontWeight:900,fontSize:12,padding:"11px 0",borderRadius:12,border:"none",cursor:"pointer",fontFamily:F,marginTop:2,boxShadow:`0 4px 14px ${um.color}44`}}>
             {um.emoji} {um.label}の全{guc(au)}問に挑戦！
           </button>
         </div>
-        <button onClick={()=>start(null,null)} style={{width:"100%",marginTop:9,background:"rgba(255,255,255,.14)",color:"#fff",fontWeight:900,fontSize:13,padding:"11px 0",borderRadius:13,border:"2px solid rgba(255,255,255,.35)",cursor:"pointer",fontFamily:F}}>
+        <button onClick={()=>start(null,null)} style={{width:"100%",marginTop:8,background:"rgba(255,255,255,.14)",color:"#fff",fontWeight:900,fontSize:12,padding:"10px 0",borderRadius:12,border:"2px solid rgba(255,255,255,.35)",cursor:"pointer",fontFamily:F}}>
           🚀 全{bank.length}問まとめて挑戦！
         </button>
       </div>
     </div>
   );
+
   if(sub==="complete"){
     const pct=score.t?Math.round(score.c/score.t*100):0,col=pct>=60?"#059669":"#DC2626";
+    const perfect=pct===100;
     return(
       <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#6366F1,#8B5CF6,#EC4899)",fontFamily:F,padding:"20px 16px 40px",overflowY:"auto"}}>
-        <style>{G}</style>
+        <Fireworks show={perfect}/>
         <div className="pop" style={{maxWidth:440,margin:"0 auto",textAlign:"center"}}>
-          <div style={{fontSize:70}}>{pct===100?"🏆":pct>=60?"💪":"📖"}</div>
-          <h2 style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:32,color:"#fff",margin:"0 0 3px"}}>おわり！</h2>
-          <div style={{background:"#fff",borderRadius:20,padding:"22px",marginBottom:14,boxShadow:"0 8px 30px rgba(0,0,0,.15)"}}>
-            <div style={{fontSize:58,fontWeight:900,color:col,fontFamily:"'Nunito',sans-serif",lineHeight:1}}>{pct}<span style={{fontSize:28}}>%</span></div>
-            <p style={{color:"#374151",fontWeight:700,fontSize:15,margin:"5px 0 14px"}}>{score.c} / {score.t} 問正解</p>
-            <div style={{height:13,background:"#E5E7EB",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:99,transition:"width 1s"}}/></div>
+          <div style={{fontSize:66}}>{perfect?"🏆":pct>=60?"💪":"📖"}</div>
+          <h2 style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:30,color:"#fff",margin:"0 0 3px"}}>{perfect?"パーフェクト！":"おわり！"}</h2>
+          <div style={{background:"#fff",borderRadius:18,padding:"20px",marginBottom:12,boxShadow:"0 8px 30px rgba(0,0,0,.15)"}}>
+            <div style={{fontSize:54,fontWeight:900,color:col,fontFamily:"'Nunito',sans-serif",lineHeight:1}}>{pct}<span style={{fontSize:26}}>%</span></div>
+            <p style={{color:"#374151",fontWeight:700,fontSize:14,margin:"4px 0 12px"}}>{score.c} / {score.t} 問正解</p>
+            <div style={{height:12,background:"#E5E7EB",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:99,transition:"width 1s"}}/></div>
+            <div style={{marginTop:10,background:"#FFFDE7",borderRadius:10,padding:"9px",display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:20}}>⭐</span>
+              <span style={{color:"#374151",fontWeight:700,fontSize:12}}>獲得XP: <strong style={{color:"#F59E0B"}}>+{score.c*XP_PER_CORRECT}</strong></span>
+            </div>
           </div>
-          <div style={{display:"flex",gap:9}}>
-            <button onClick={()=>start(sg,sl)} style={{flex:1,background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:14,padding:"14px 0",borderRadius:15,border:"none",cursor:"pointer",fontFamily:F}}>🔄 もう一度</button>
-            <button onClick={()=>setSub("home")} style={{flex:1,background:"rgba(255,255,255,.2)",color:"#fff",fontWeight:900,fontSize:14,padding:"14px 0",borderRadius:15,border:"2px solid rgba(255,255,255,.4)",cursor:"pointer",fontFamily:F}}>📚 単元選択</button>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>start(sg,sl)} style={{flex:1,background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:13,padding:"13px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F}}>🔄 もう一度</button>
+            <button onClick={()=>setSub("home")} style={{flex:1,background:"rgba(255,255,255,.2)",color:"#fff",fontWeight:900,fontSize:13,padding:"13px 0",borderRadius:14,border:"2px solid rgba(255,255,255,.4)",cursor:"pointer",fontFamily:F}}>📚 単元選択</button>
           </div>
-          <button onClick={back} style={{width:"100%",marginTop:9,background:"rgba(255,255,255,.1)",color:"rgba(255,255,255,.65)",fontWeight:900,fontSize:13,padding:"11px 0",borderRadius:13,border:"1px solid rgba(255,255,255,.18)",cursor:"pointer",fontFamily:F}}>🏠 メニューへ</button>
+          <button onClick={back} style={{width:"100%",marginTop:8,background:"rgba(255,255,255,.1)",color:"rgba(255,255,255,.6)",fontWeight:900,fontSize:12,padding:"10px 0",borderRadius:12,border:"1px solid rgba(255,255,255,.18)",cursor:"pointer",fontFamily:F}}>🏠 メニューへ</button>
         </div>
       </div>
     );
   }
-  const q=queue[idx];if(!q)return null;
+
+  if(!q)return null;
   const gm=GM[q.genre]||{},lm=LM[q.level]||{},prog=queue.length?(idx/queue.length)*100:0;
+  const correctText=q.options.find(o=>o.correct)?.text||"";
+  const fullSentence=q.english.replace(/___+/g,correctText);
+
   const doSel=opt=>{setSel(opt);setPhase("confirm");};
   const doConf=()=>{
-    const ok=sel.correct;const ns={c:score.c+(ok?1:0),t:score.t+1};setScore(ns);setStreak(ok?streak+1:0);setResult(ok?"correct":"wrong");
+    const ok=sel.correct;
+    const ns={c:score.c+(ok?1:0),t:score.t+1};setScore(ns);
+    const newCombo=ok?combo+1:0;setCombo(newCombo);
+    setResult(ok?"correct":"wrong");
+    if(ok){addXP(XP_PER_CORRECT+(newCombo>=3?XP_BONUS_STREAK:0),null);}
     if(!ok){setShaking(true);setTimeout(()=>setShaking(false),600);setMist({...mist,[q.id]:Date.now()});}
-    else if(mist[q.id]){const l={...mist};delete l[q.id];setMist(l);}setPhase("result");
+    else if(mist[q.id]){const l={...mist};delete l[q.id];setMist(l);}
+    addHist({mode:"fill",label:sg||"全問",correct:ns.c,total:ns.t});
+    setPhase("result");
   };
   const doNext=()=>{
     setShowAll(false);setResult(null);setShowPron(false);
-    if(idx+1>=queue.length){addHist({mode:"fill",label:sg||"全問",correct:score.c,total:score.t});setSub("complete");}
-    else{setIdx(i=>i+1);setSel(null);setPhase("question");}
+    if(idx+1>=queue.length){
+      if(score.c===score.t&&score.t>0)setShowFireworks(true);
+      setSub("complete");
+    } else{setIdx(i=>i+1);setSel(null);setPhase("question");}
   };
+
   return(
     <div style={{minHeight:"100vh",background:"#F0F4FF",fontFamily:F,paddingBottom:40}}>
-      <style>{G}</style>
-      <div style={{background:"linear-gradient(90deg,#6366F1,#8B5CF6)",padding:"11px 15px 0"}}>
+      <div style={{background:"linear-gradient(90deg,#6366F1,#8B5CF6)",padding:"10px 14px 0"}}>
         <div style={{maxWidth:500,margin:"0 auto"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
-            <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
-              <button onClick={()=>setSub("home")} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:11,padding:"4px 9px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← 戻る</button>
-              {sg&&<span style={{background:gm.bg,color:gm.color,fontWeight:900,fontSize:10,padding:"2px 8px",borderRadius:99}}>{sg}</span>}
-              {sl&&<span style={{background:lm.bg,color:lm.color,fontWeight:900,fontSize:10,padding:"2px 8px",borderRadius:99}}>{lm.label}</span>}
-              {rm&&<span style={{background:"#FFF3CD",color:"#92400E",fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99}}>🔁 復習</span>}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+              <button onClick={handleBack} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:10,padding:"4px 8px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← 単元選択</button>
+              <button onClick={handleBackToMenu} style={{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.3)",color:"rgba(255,255,255,.8)",fontWeight:900,fontSize:10,padding:"4px 8px",borderRadius:99,cursor:"pointer",fontFamily:F}}>🏠</button>
+              {sg&&<span style={{background:gm.bg,color:gm.color,fontWeight:900,fontSize:9,padding:"2px 7px",borderRadius:99}}>{sg}</span>}
+              {sl&&<span style={{background:lm.bg,color:lm.color,fontWeight:900,fontSize:9,padding:"2px 7px",borderRadius:99}}>{lm.label}</span>}
+              {rm&&<span style={{background:"#FFF3CD",color:"#92400E",fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:99}}>🔁 復習</span>}
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              {streak>=3&&<span style={{background:"#FF6B35",color:"#fff",fontWeight:900,fontSize:9,padding:"2px 7px",borderRadius:99}}>{streak>=5?"⚡":"🔥"}{streak}連続！</span>}
-              <span style={{color:"#C7D2FE",fontWeight:900,fontSize:13,fontFamily:"'Nunito',sans-serif",whiteSpace:"nowrap"}}><span style={{color:"#fff"}}>{idx+1}</span>/{queue.length}</span>
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              {combo>=3&&<span className="comboAnim" style={{background:combo>=6?"linear-gradient(90deg,#FF6B35,#FFD600)":"#FF6B35",color:"#fff",fontWeight:900,fontSize:9,padding:"2px 8px",borderRadius:99}}>{combo>=6?"⚡":"🔥"}{combo}連続！</span>}
+              <span style={{color:"#C7D2FE",fontWeight:900,fontSize:12,fontFamily:"'Nunito',sans-serif",whiteSpace:"nowrap"}}><span style={{color:"#fff"}}>{idx+1}</span>/{queue.length}</span>
             </div>
           </div>
-          <div style={{height:9,background:"rgba(255,255,255,.25)",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${prog}%`,background:"#FFD600",borderRadius:99,transition:"width .5s"}}/></div>
+          <div style={{height:8,background:"rgba(255,255,255,.25)",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${prog}%`,background:"#FFD600",borderRadius:99,transition:"width .5s"}}/></div>
         </div>
       </div>
-      <div style={{maxWidth:500,margin:"0 auto",padding:"14px 14px 0"}}>
-        <div key={q.id} className={shaking?"shake":"pop"} style={{background:CB[idx%CB.length],border:`3px solid ${gm.color||"#6366F1"}`,borderRadius:20,padding:"18px 20px",marginBottom:14}}>
-          <div style={{display:"flex",gap:7,marginBottom:10}}>
-            <span style={{background:gm.color||"#6366F1",color:"#fff",fontSize:10,fontWeight:900,padding:"3px 10px",borderRadius:99}}>{q.topic}</span>
-            <span style={{background:lm.bg||"#DBEAFE",color:lm.color||"#2563EB",fontSize:10,fontWeight:900,padding:"3px 8px",borderRadius:99}}>{lm.label}</span>
+
+      <div style={{maxWidth:500,margin:"0 auto",padding:"12px 13px 0"}}>
+        {combo>=3&&phase==="question"&&<ComboDisplay combo={combo}/>}
+
+        <div key={q.id} className={shaking?"shake":"pop"} style={{background:CB[idx%CB.length],border:`3px solid ${gm.color||"#6366F1"}`,borderRadius:18,padding:"16px 18px",marginBottom:12}}>
+          <div style={{display:"flex",gap:6,marginBottom:9,alignItems:"center"}}>
+            <span style={{background:gm.color||"#6366F1",color:"#fff",fontSize:9,fontWeight:900,padding:"3px 9px",borderRadius:99}}>{q.topic}</span>
+            <span style={{background:lm.bg||"#DBEAFE",color:lm.color||"#2563EB",fontSize:9,fontWeight:900,padding:"3px 7px",borderRadius:99}}>{lm.label}</span>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <span style={{fontSize:42,flexShrink:0}}>{q.emoji}</span>
-            <div>
-              <p style={{color:"#374151",fontWeight:700,fontSize:14,margin:"0 0 7px",lineHeight:1.5}}>{q.sentence}</p>
-              <p style={{color:gm.color||"#4F46E5",fontWeight:900,fontSize:22,margin:0,fontFamily:"'Nunito',sans-serif"}}>{q.english}</p>
+          <div style={{display:"flex",alignItems:"center",gap:11}}>
+            <span style={{fontSize:38,flexShrink:0}}>{q.emoji}</span>
+            <div style={{flex:1}}>
+              <p style={{color:"#374151",fontWeight:700,fontSize:13,margin:"0 0 6px",lineHeight:1.5}}>{q.sentence}</p>
+              <p style={{color:gm.color||"#4F46E5",fontWeight:900,fontSize:20,margin:0,fontFamily:"'Nunito',sans-serif"}}>{q.english}</p>
             </div>
           </div>
-          <p style={{color:"#6B7280",fontSize:11,fontWeight:700,margin:"11px 0 0",textAlign:"center"}}>▼ ___ に入る正しい英語を選ぼう！</p>
+          <p style={{color:"#6B7280",fontSize:10,fontWeight:700,margin:"10px 0 0",textAlign:"center"}}>▼ ___ に入る正しい英語を選ぼう！</p>
         </div>
+
         {phase==="question"&&(
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
             {q.options.map((opt,i)=>(
-              <button key={opt.id} className="fadeUp" style={{animationDelay:`${i*55}ms`,display:"flex",alignItems:"center",gap:13,background:"#fff",border:`3px solid ${OC[i]}`,borderRadius:16,padding:"13px 16px",cursor:"pointer",fontFamily:F,width:"100%"}} onClick={()=>doSel(opt)}>
-                <span style={{background:OC[i],color:"#fff",fontWeight:900,fontSize:13,width:32,height:32,borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontFamily:"'Nunito',sans-serif"}}>{OL[i]}</span>
-                <span style={{color:"#111827",fontWeight:900,fontSize:18,fontFamily:"'Nunito',sans-serif"}}>{opt.text}</span>
+              <button key={opt.id} className="fadeUp" style={{animationDelay:`${i*50}ms`,display:"flex",alignItems:"center",gap:12,background:"#fff",border:`3px solid ${OC[i]}`,borderRadius:15,padding:"12px 15px",cursor:"pointer",fontFamily:F,width:"100%"}} onClick={()=>doSel(opt)}>
+                <span style={{background:OC[i],color:"#fff",fontWeight:900,fontSize:12,width:30,height:30,borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontFamily:"'Nunito',sans-serif"}}>{OL[i]}</span>
+                <span style={{color:"#111827",fontWeight:900,fontSize:17,fontFamily:"'Nunito',sans-serif"}}>{opt.text}</span>
               </button>
             ))}
           </div>
         )}
+
         {phase==="confirm"&&(
-          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:11}}>
-            <div style={{background:"#EDE9FE",border:"3px solid #7C3AED",borderRadius:20,padding:"18px",textAlign:"center"}}>
-              <div style={{fontSize:44,marginBottom:7}}>🗣️</div>
-              <p style={{color:"#1F2937",fontWeight:900,fontSize:15,margin:"0 0 3px"}}>選んだ答え：<span style={{color:"#7C3AED",fontFamily:"'Nunito',sans-serif",fontSize:17}}>{sel.text}</span></p>
-              <div style={{height:2,background:"#C4B5FD",margin:"11px 0"}}/>
-              <p style={{color:"#4C1D95",fontWeight:900,fontSize:13,margin:"0 0 5px"}}>なぜその答えを選びましたか？</p>
-              <p style={{color:"#5B21B6",fontWeight:700,fontSize:12,lineHeight:1.8,margin:0}}>声に出して理由を説明してから<br/><span style={{color:"#7C3AED",fontWeight:900}}>ボタンを押してください！</span></p>
+          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{background:"#EDE9FE",border:"3px solid #7C3AED",borderRadius:18,padding:"16px",textAlign:"center"}}>
+              <div style={{fontSize:40,marginBottom:6}}>🗣️</div>
+              <p style={{color:"#1F2937",fontWeight:900,fontSize:14,margin:"0 0 3px"}}>選んだ答え：<span style={{color:"#7C3AED",fontFamily:"'Nunito',sans-serif",fontSize:16}}>{sel.text}</span></p>
+              <div style={{height:2,background:"#C4B5FD",margin:"10px 0"}}/>
+              <p style={{color:"#4C1D95",fontWeight:900,fontSize:12,margin:"0 0 4px"}}>なぜその答えを選びましたか？</p>
+              <p style={{color:"#5B21B6",fontWeight:700,fontSize:11,lineHeight:1.8,margin:0}}>声に出して理由を説明してから<br/><span style={{color:"#7C3AED",fontWeight:900}}>ボタンを押してください！</span></p>
             </div>
-            <button onClick={doConf} style={{background:"#7C3AED",color:"#fff",fontWeight:900,fontSize:15,padding:"15px 0",borderRadius:16,border:"none",cursor:"pointer",fontFamily:F,boxShadow:"0 5px 18px rgba(124,58,237,.4)"}}>✅ 説明できた！→ 答えを見る</button>
-            <button onClick={()=>{setSel(null);setPhase("question");}} style={{background:"#fff",color:"#6B7280",fontWeight:700,fontSize:13,padding:"11px 0",borderRadius:13,border:"2.5px solid #D1D5DB",cursor:"pointer",fontFamily:F}}>← 選択肢に戻る</button>
+            <button onClick={doConf} style={{background:"#7C3AED",color:"#fff",fontWeight:900,fontSize:14,padding:"14px 0",borderRadius:15,border:"none",cursor:"pointer",fontFamily:F,boxShadow:"0 5px 18px rgba(124,58,237,.4)"}}>✅ 説明できた！→ 答えを見る</button>
+            <button onClick={()=>{setSel(null);setPhase("question");}} style={{background:"#fff",color:"#6B7280",fontWeight:700,fontSize:12,padding:"10px 0",borderRadius:12,border:"2.5px solid #D1D5DB",cursor:"pointer",fontFamily:F}}>← 選択肢に戻る</button>
           </div>
         )}
+
         {phase==="result"&&(
-          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:11}}>
-            <div style={{background:result==="correct"?"#D1FAE5":"#FEE2E2",border:`3px solid ${result==="correct"?"#059669":"#DC2626"}`,borderRadius:20,padding:"16px",textAlign:"center"}}>
+          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{background:result==="correct"?"#D1FAE5":"#FEE2E2",border:`3px solid ${result==="correct"?"#059669":"#DC2626"}`,borderRadius:18,padding:"14px",textAlign:"center"}}>
               <div style={{fontSize:50}}>{result==="correct"?"🎉":"😅"}</div>
-              <p style={{color:result==="correct"?"#065F46":"#991B1B",fontWeight:900,fontSize:20,margin:"3px 0 0",fontFamily:"'Nunito',sans-serif"}}>{result==="correct"?"正解！":"不正解…"}</p>
+              <p style={{color:result==="correct"?"#065F46":"#991B1B",fontWeight:900,fontSize:19,margin:"4px 0 0",fontFamily:"'Nunito',sans-serif"}}>{result==="correct"?PRAISE[praiseIdx]:RETRY[retryIdx]}</p>
+              {result==="correct"&&<div style={{color:"#065F46",fontWeight:700,fontSize:11,marginTop:4}}>+{XP_PER_CORRECT+(combo>=3?XP_BONUS_STREAK:0)} XP{combo>=3?" ⚡コンボボーナス":""}</div>}
             </div>
-            <div style={{background:"#fff",border:"2.5px solid #E5E7EB",borderRadius:18,padding:"14px 16px"}}>
-              <p style={{color:"#111827",fontWeight:700,fontSize:12,lineHeight:1.8,margin:"0 0 9px"}}>{q.explanation.correct}</p>
-              {result==="wrong"&&<div style={{background:"#D1FAE5",border:"2.5px solid #059669",borderRadius:12,padding:"10px 12px",marginBottom:8}}><p style={{color:"#065F46",fontWeight:900,fontSize:13,margin:0}}>✅ 正解：<span style={{fontSize:17,fontFamily:"'Nunito',sans-serif",marginLeft:3}}>{q.options.find(o=>o.correct)?.text}</span></p></div>}
-              {q.genre==="代名詞"&&<button onClick={()=>setShowPron(v=>!v)} style={{background:"#EDE9FE",color:"#6D28D9",fontWeight:900,fontSize:11,padding:"8px 0",borderRadius:9,border:"2px solid #C4B5FD",cursor:"pointer",width:"100%",fontFamily:F,marginBottom:7}}>{showPron?"▲ 代名詞変化表を閉じる":"👤 代名詞変化表を見る"}</button>}
-              {showPron&&<div style={{marginBottom:8,overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}><thead><tr style={{background:"#6D28D9",color:"#fff"}}>{["","主格","所有格","目的格","所有代名詞"].map((h,i)=><th key={i} style={{padding:"4px 5px",fontWeight:900,fontSize:9}}>{h}</th>)}</tr></thead><tbody>{PT.map((r,i)=><tr key={i} style={{background:i%2===0?"#EDE9FE":"#F5F3FF"}}><td style={{padding:"4px 5px",fontWeight:900,color:"#5B21B6",fontSize:10}}>{r.label}</td>{[r.subj,r.poss,r.obj,r.pp].map((v,j)=><td key={j} style={{padding:"4px 5px",textAlign:"center",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:11}}>{v}</td>)}</tr>)}</tbody></table></div>}
-              <button onClick={()=>setShowAll(v=>!v)} style={{background:"#F3F4F6",color:"#374151",fontWeight:700,fontSize:11,padding:"8px 0",borderRadius:9,border:"2px solid #E5E7EB",cursor:"pointer",width:"100%",fontFamily:F}}>{showAll?"▲ 全選択肢の解説を閉じる":"▼ 全選択肢の解説を見る"}</button>
-              {showAll&&<div style={{marginTop:9,display:"flex",flexDirection:"column",gap:7}}>{q.options.map((opt,i)=>{const p=parseExp(q.explanation.correct);return(<div key={opt.id} style={{background:opt.correct?"#D1FAE5":"#FEF2F2",border:`2px solid ${opt.correct?"#6EE7B7":"#FECACA"}`,borderRadius:11,padding:"9px 11px"}}><div style={{display:"flex",gap:7,alignItems:"center",marginBottom:3}}><span style={{background:OC[i],color:"#fff",fontWeight:900,fontSize:10,width:20,height:20,borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{OL[i]}</span><span style={{fontWeight:900,fontSize:13,fontFamily:"'Nunito',sans-serif"}}>{opt.text}</span>{opt.correct&&<span style={{background:"#059669",color:"#fff",fontSize:9,fontWeight:900,padding:"1px 6px",borderRadius:99}}>正解</span>}</div><p style={{color:opt.correct?"#065F46":"#991B1B",fontSize:11,fontWeight:700,margin:"0 0 0 27px",lineHeight:1.6}}>{opt.correct?p._correct:(p[opt.text]||"正解の解説を確認しよう！")}</p></div>);})}</div>}
+
+            <div style={{background:"#fff",border:"2.5px solid #E5E7EB",borderRadius:16,padding:"13px 15px"}}>
+              <p style={{color:"#111827",fontWeight:700,fontSize:11,lineHeight:1.8,margin:"0 0 10px"}}>{q.explanation.correct}</p>
+
+              <div style={{background:"#F0F9FF",border:"2px solid #BAE6FD",borderRadius:12,padding:"10px 12px",marginBottom:10}}>
+                <p style={{color:"#0369A1",fontWeight:900,fontSize:10,margin:"0 0 6px"}}>✅ 正解の全文を声に出して練習しよう！</p>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                  <span style={{color:"#0369A1",fontWeight:900,fontSize:15,fontFamily:"'Nunito',sans-serif",flex:1,lineHeight:1.4}}>{fullSentence}</span>
+                </div>
+                <SpeakButton text={fullSentence} label="🔊 正解の全文を聴く" color="#0369A1" size="large"/>
+              </div>
+
+              {result==="wrong"&&<div style={{background:"#D1FAE5",border:"2.5px solid #059669",borderRadius:11,padding:"9px 11px",marginBottom:8}}><p style={{color:"#065F46",fontWeight:900,fontSize:12,margin:0}}>✅ 正解：<span style={{fontSize:16,fontFamily:"'Nunito',sans-serif",marginLeft:3}}>{correctText}</span></p></div>}
+              {q.genre==="代名詞"&&<button onClick={()=>setShowPron(v=>!v)} style={{background:"#EDE9FE",color:"#6D28D9",fontWeight:900,fontSize:10,padding:"7px 0",borderRadius:8,border:"2px solid #C4B5FD",cursor:"pointer",width:"100%",fontFamily:F,marginBottom:6}}>{showPron?"▲ 代名詞変化表を閉じる":"👤 代名詞変化表を見る"}</button>}
+              {showPron&&<div style={{marginBottom:7,overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:9}}><thead><tr style={{background:"#6D28D9",color:"#fff"}}>{["","主格","所有格","目的格","所有代名詞"].map((h,i)=><th key={i} style={{padding:"3px 4px",fontWeight:900,fontSize:8}}>{h}</th>)}</tr></thead><tbody>{PT.map((r,i)=><tr key={i} style={{background:i%2===0?"#EDE9FE":"#F5F3FF"}}><td style={{padding:"3px 4px",fontWeight:900,color:"#5B21B6",fontSize:9}}>{r.label}</td>{[r.subj,r.poss,r.obj,r.pp].map((v,j)=><td key={j} style={{padding:"3px 4px",textAlign:"center",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:10}}>{v}</td>)}</tr>)}</tbody></table></div>}
+              <button onClick={()=>setShowAll(v=>!v)} style={{background:"#F3F4F6",color:"#374151",fontWeight:700,fontSize:10,padding:"7px 0",borderRadius:8,border:"2px solid #E5E7EB",cursor:"pointer",width:"100%",fontFamily:F}}>{showAll?"▲ 全選択肢の解説を閉じる":"▼ 全選択肢の解説を見る"}</button>
+              {showAll&&<div style={{marginTop:8,display:"flex",flexDirection:"column",gap:6}}>{q.options.map((opt,i)=>{const p=parseExp(q.explanation.correct);return(<div key={opt.id} style={{background:opt.correct?"#D1FAE5":"#FEF2F2",border:`2px solid ${opt.correct?"#6EE7B7":"#FECACA"}`,borderRadius:10,padding:"8px 10px"}}><div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}><span style={{background:OC[i],color:"#fff",fontWeight:900,fontSize:9,width:18,height:18,borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{OL[i]}</span><span style={{fontWeight:900,fontSize:12,fontFamily:"'Nunito',sans-serif"}}>{opt.text}</span>{opt.correct&&<span style={{background:"#059669",color:"#fff",fontSize:8,fontWeight:900,padding:"1px 5px",borderRadius:99}}>正解</span>}</div><p style={{color:opt.correct?"#065F46":"#991B1B",fontSize:10,fontWeight:700,margin:"0 0 0 24px",lineHeight:1.6}}>{opt.correct?p._correct:(p[opt.text]||"正解の解説を確認しよう！")}</p></div>);})}</div>}
+              <AiChatButton question={q.sentence} answer={fullSentence} />
             </div>
-            <button onClick={doNext} style={{background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:16,padding:"15px 0",borderRadius:17,border:"none",cursor:"pointer",fontFamily:F,boxShadow:"0 5px 18px rgba(255,214,0,.45)"}}>{idx+1>=queue.length?"🏁 結果を見る！":"次の問題へ →"}</button>
+            <button onClick={doNext} style={{background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:15,padding:"14px 0",borderRadius:16,border:"none",cursor:"pointer",fontFamily:F,boxShadow:"0 5px 18px rgba(255,214,0,.45)"}}>{idx+1>=queue.length?"🏁 結果を見る！":"次の問題へ →"}</button>
           </div>
         )}
       </div>
@@ -534,8 +954,8 @@ function FillQuiz({bank,mist,setMist,addHist,back}){
   );
 }
 
-/* ── Sort Quiz ── */
-function SortQuiz({bank,addHist,back}){
+/* ═══════════════ SORT QUIZ ═══════════════ */
+function SortQuiz({bank,addHist,addXP,back}){
   const [sub,setSub]=useState("home");
   const [au,setAu]=useState(Object.keys(UM).find(k=>bank.some(q=>q.unit===k))||"単元1");
   const [queue,setQueue]=useState([]);
@@ -548,152 +968,223 @@ function SortQuiz({bank,addHist,back}){
   const [shaking,setShaking]=useState(false);
   const [su,setSu]=useState(null);
   const [sl,setSl]=useState(null);
+  const [showExpl,setShowExpl]=useState(false);
+  const [combo,setCombo]=useState(0);
+
   const gc=(u,l)=>bank.filter(q=>q.unit===u&&(l?q.level===l:true)).length;
   const initQ=q=>{const all=shuf([...q.answer.filter(w=>w!==","),...q.extra]);setAvail(all.map((w,i)=>({w,id:`av${i}_${Date.now()}`})));setArr([]);};
+
+  const handleBack = useCallback(() => { setSub("home"); },[]);
+  const handleBackToMenu = useCallback(() => { back(); },[back]);
+
   const start=useCallback((unit,level)=>{
     let pool=[...bank];if(unit)pool=pool.filter(q=>q.unit===unit);if(level)pool=pool.filter(q=>q.level===level);
     pool=shuf(pool);if(pool.length===0)return;setQueue(pool);setSu(unit);setSl(level);
-    setIdx(0);setScore({c:0,t:0});setPhase("question");setResult(null);initQ(pool[0]);setSub("quiz");
+    setIdx(0);setScore({c:0,t:0});setPhase("question");setResult(null);initQ(pool[0]);setSub("quiz");setShowExpl(false);setCombo(0);
   },[bank]);
-  useEffect(()=>{if(queue[idx])initQ(queue[idx]);},[idx]);
+  useEffect(()=>{if(queue[idx]){initQ(queue[idx]);setShowExpl(false);}}, [idx]);
+
   const q=queue[idx];
   const tapAv=item=>{setAvail(p=>p.filter(x=>x.id!==item.id));setArr(p=>[...p,item]);};
   const tapArr=item=>{setArr(p=>p.filter(x=>x.id!==item.id));setAvail(p=>[...p,item]);};
   const check=()=>{
     const correct=q.answer.filter(w=>w!==","),ans=arr.map(x=>x.w);
     const ok=ans.length===correct.length&&ans.every((w,i)=>w===correct[i]);
-    setResult(ok?"correct":"wrong");if(!ok){setShaking(true);setTimeout(()=>setShaking(false),600);}
-    setScore(s=>({c:s.c+(ok?1:0),t:s.t+1}));setPhase("result");
+    setResult(ok?"correct":"wrong");
+    if(!ok){setShaking(true);setTimeout(()=>setShaking(false),600);}
+    const newCombo=ok?combo+1:0;setCombo(newCombo);
+    if(ok)addXP(XP_PER_CORRECT+(newCombo>=3?XP_BONUS_STREAK:0),null);
+    setScore(s=>{
+      const ns={c:s.c+(ok?1:0),t:s.t+1};
+      addHist({mode:"sort",label:su||"全問",correct:ns.c,total:ns.t});
+      return ns;
+    });
+    setPhase("result");
   };
   const next=()=>{
-    setResult(null);
-    if(idx+1>=queue.length){addHist({mode:"sort",label:su||"全問",correct:score.c,total:score.t});setSub("complete");}
+    setResult(null);setShowExpl(false);
+    if(idx+1>=queue.length){setSub("complete");}
     else{setIdx(i=>i+1);setPhase("question");}
   };
   const um=UM[au]||{};
+  const expl=q?genSortExpl(q):null;
+
   if(sub==="home") return(
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#064E3B,#059669,#10B981)",fontFamily:F,padding:"16px 16px 32px",overflowY:"auto"}}>
-      <style>{G}</style>
       <div style={{maxWidth:480,margin:"0 auto"}}>
-        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:13}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
           <button onClick={back} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:12,padding:"6px 12px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← メニュー</button>
-          <h2 style={{color:"#fff",fontWeight:900,fontSize:17,margin:0}}>🔀 並べ替え問題</h2>
+          <h2 style={{color:"#fff",fontWeight:900,fontSize:16,margin:0}}>🔀 並べ替え問題</h2>
         </div>
-        <div style={{background:"rgba(255,255,255,.12)",borderRadius:12,padding:"9px 13px",marginBottom:13}}>
-          <p style={{color:"#fff",fontWeight:700,fontSize:12,margin:0,lineHeight:1.7}}>💡 日本語を見て、英単語をタップして正しい順番に並べよう！<br/>並べた単語をタップすると元に戻せます。</p>
+        <div style={{background:"rgba(255,255,255,.12)",borderRadius:11,padding:"8px 12px",marginBottom:12}}>
+          <p style={{color:"#fff",fontWeight:700,fontSize:11,margin:0,lineHeight:1.7}}>💡 日本語を見て英単語をタップして正しい順番に並べよう！<br/>📖 正解後に文法解説＆音声ボタンが表示されます。</p>
         </div>
-        <div style={{overflowX:"auto",marginBottom:11,WebkitOverflowScrolling:"touch"}}>
-          <div style={{display:"flex",gap:7,width:"max-content",paddingBottom:4}}>
+        <div style={{overflowX:"auto",marginBottom:10,WebkitOverflowScrolling:"touch"}}>
+          <div style={{display:"flex",gap:6,width:"max-content",paddingBottom:3}}>
             {Object.entries(UM).map(([key,meta])=>{const a=au===key,h=bank.some(q=>q.unit===key);return(
-              <button key={key} onClick={()=>{if(h)setAu(key);}} style={{background:a?"#fff":h?"rgba(255,255,255,.2)":"rgba(255,255,255,.06)",border:a?"3px solid #059669":"2px solid rgba(255,255,255,.22)",borderRadius:13,padding:"8px 11px",cursor:h?"pointer":"default",textAlign:"center",fontFamily:F,minWidth:80,flexShrink:0,opacity:h?1:0.4}}>
-                <div style={{fontSize:15}}>{meta.emoji}</div>
-                <div style={{fontWeight:900,fontSize:10,color:a?"#059669":"#fff",whiteSpace:"nowrap"}}>{meta.label}</div>
-                <div style={{background:a?"#059669":"rgba(255,255,255,.22)",color:"#fff",fontSize:9,fontWeight:900,borderRadius:99,padding:"2px 7px",display:"inline-block",marginTop:3}}>{h?`${gc(key)}問`:"準備中"}</div>
+              <button key={key} onClick={()=>{if(h)setAu(key);}} style={{background:a?"#fff":h?"rgba(255,255,255,.2)":"rgba(255,255,255,.06)",border:a?"3px solid #059669":"2px solid rgba(255,255,255,.22)",borderRadius:12,padding:"7px 10px",cursor:h?"pointer":"default",textAlign:"center",fontFamily:F,minWidth:76,flexShrink:0,opacity:h?1:0.4}}>
+                <div style={{fontSize:13}}>{meta.emoji}</div>
+                <div style={{fontWeight:900,fontSize:9,color:a?"#059669":"#fff",whiteSpace:"nowrap"}}>{meta.label}</div>
+                <div style={{background:a?"#059669":"rgba(255,255,255,.22)",color:"#fff",fontSize:8,fontWeight:900,borderRadius:99,padding:"2px 6px",display:"inline-block",marginTop:2}}>{h?`${gc(key)}問`:"準備中"}</div>
               </button>
             );})}
           </div>
         </div>
         {bank.some(q=>q.unit===au)&&(
-          <div style={{background:"rgba(255,255,255,.95)",borderRadius:18,padding:"14px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:13}}>
-              <span style={{fontSize:22}}>{um.emoji}</span>
-              <div><p style={{fontWeight:900,fontSize:13,color:um.color,margin:0}}>{um.label}：{um.title}</p><p style={{color:"#6B7280",fontSize:11,fontWeight:700,margin:"2px 0 0"}}>全{gc(au)}問</p></div>
+          <div style={{background:"rgba(255,255,255,.95)",borderRadius:16,padding:"13px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+              <span style={{fontSize:20}}>{um.emoji}</span>
+              <div><p style={{fontWeight:900,fontSize:12,color:um.color,margin:0}}>{um.label}：{um.title}</p><p style={{color:"#6B7280",fontSize:10,fontWeight:700,margin:"1px 0 0"}}>全{gc(au)}問</p></div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7,marginBottom:11}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
               {["Lv1","Lv2","Lv3"].map(level=>{const lm=LM[level],cnt=bank.filter(q=>q.unit===au&&q.level===level).length,locked=cnt===0;return(
                 <button key={level} disabled={locked} onClick={()=>start(au,level)}
-                  style={{background:locked?"#F9FAFB":lm.bg,border:`2.5px solid ${locked?"#E5E7EB":lm.color}`,borderRadius:13,padding:"9px 5px",cursor:locked?"not-allowed":"pointer",textAlign:"center",opacity:locked?0.4:1,fontFamily:F}}>
-                  <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:15,color:locked?"#9CA3AF":lm.color}}>{lm.label}</div>
-                  <div style={{fontSize:9,color:locked?"#9CA3AF":"#374151",fontWeight:700,margin:"2px 0",lineHeight:1.3}}>{um.levelDesc[level]}</div>
-                  <div style={{background:locked?"#E5E7EB":lm.color,color:"#fff",fontWeight:900,fontSize:10,borderRadius:99,padding:"2px 7px",display:"inline-block"}}>{locked?"準備中":`${cnt}問`}</div>
+                  style={{background:locked?"#F9FAFB":lm.bg,border:`2.5px solid ${locked?"#E5E7EB":lm.color}`,borderRadius:12,padding:"8px 4px",cursor:locked?"not-allowed":"pointer",textAlign:"center",opacity:locked?0.4:1,fontFamily:F}}>
+                  <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:14,color:locked?"#9CA3AF":lm.color}}>{lm.label}</div>
+                  <div style={{fontSize:8,color:locked?"#9CA3AF":"#374151",fontWeight:700,margin:"2px 0",lineHeight:1.3}}>{um.levelDesc[level]}</div>
+                  <div style={{background:locked?"#E5E7EB":lm.color,color:"#fff",fontWeight:900,fontSize:9,borderRadius:99,padding:"2px 6px",display:"inline-block"}}>{locked?"準備中":`${cnt}問`}</div>
                 </button>
               );})}
             </div>
-            <button onClick={()=>start(au,null)} style={{width:"100%",background:"linear-gradient(90deg,#059669,#10B981)",color:"#fff",fontWeight:900,fontSize:13,padding:"11px 0",borderRadius:13,border:"none",cursor:"pointer",fontFamily:F}}>{um.emoji} {um.label}の全{gc(au)}問に挑戦！</button>
+            <button onClick={()=>start(au,null)} style={{width:"100%",background:"linear-gradient(90deg,#059669,#10B981)",color:"#fff",fontWeight:900,fontSize:12,padding:"10px 0",borderRadius:12,border:"none",cursor:"pointer",fontFamily:F}}>{um.emoji} {um.label}の全{gc(au)}問に挑戦！</button>
           </div>
         )}
-        <button onClick={()=>start(null,null)} style={{width:"100%",marginTop:9,background:"rgba(255,255,255,.15)",color:"#fff",fontWeight:900,fontSize:13,padding:"11px 0",borderRadius:13,border:"2px solid rgba(255,255,255,.32)",cursor:"pointer",fontFamily:F}}>🚀 全{bank.length}問まとめて挑戦！</button>
+        <button onClick={()=>start(null,null)} style={{width:"100%",marginTop:8,background:"rgba(255,255,255,.15)",color:"#fff",fontWeight:900,fontSize:12,padding:"10px 0",borderRadius:12,border:"2px solid rgba(255,255,255,.32)",cursor:"pointer",fontFamily:F}}>🚀 全{bank.length}問まとめて挑戦！</button>
       </div>
     </div>
   );
+
   if(sub==="complete"){
     const pct=score.t?Math.round(score.c/score.t*100):0;
     return(
       <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#064E3B,#059669,#10B981)",fontFamily:F,padding:"20px 16px 40px",overflowY:"auto"}}>
-        <style>{G}</style>
+        <Fireworks show={pct===100}/>
         <div className="pop" style={{maxWidth:440,margin:"0 auto",textAlign:"center"}}>
-          <div style={{fontSize:70}}>{pct===100?"🏆":pct>=60?"💪":"📖"}</div>
-          <h2 style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:32,color:"#fff",margin:"0 0 3px"}}>おわり！</h2>
-          <div style={{background:"#fff",borderRadius:20,padding:"22px",marginBottom:14}}>
-            <div style={{fontSize:58,fontWeight:900,color:pct>=60?"#059669":"#DC2626",fontFamily:"'Nunito',sans-serif",lineHeight:1}}>{pct}<span style={{fontSize:28}}>%</span></div>
-            <p style={{color:"#374151",fontWeight:700,fontSize:15,margin:"5px 0 14px"}}>{score.c} / {score.t} 問正解</p>
-            <div style={{height:13,background:"#E5E7EB",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:pct>=60?"#059669":"#DC2626",borderRadius:99,transition:"width 1s"}}/></div>
+          <div style={{fontSize:66}}>{pct===100?"🏆":pct>=60?"💪":"📖"}</div>
+          <h2 style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:30,color:"#fff",margin:"0 0 3px"}}>{pct===100?"パーフェクト！":"おわり！"}</h2>
+          <div style={{background:"#fff",borderRadius:18,padding:"20px",marginBottom:12}}>
+            <div style={{fontSize:54,fontWeight:900,color:pct>=60?"#059669":"#DC2626",fontFamily:"'Nunito',sans-serif",lineHeight:1}}>{pct}<span style={{fontSize:26}}>%</span></div>
+            <p style={{color:"#374151",fontWeight:700,fontSize:14,margin:"4px 0 12px"}}>{score.c} / {score.t} 問正解</p>
+            <div style={{height:12,background:"#E5E7EB",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:pct>=60?"#059669":"#DC2626",borderRadius:99,transition:"width 1s"}}/></div>
           </div>
-          <div style={{display:"flex",gap:9}}>
-            <button onClick={()=>start(su,sl)} style={{flex:1,background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:14,padding:"14px 0",borderRadius:15,border:"none",cursor:"pointer",fontFamily:F}}>🔄 もう一度</button>
-            <button onClick={()=>setSub("home")} style={{flex:1,background:"rgba(255,255,255,.2)",color:"#fff",fontWeight:900,fontSize:14,padding:"14px 0",borderRadius:15,border:"2px solid rgba(255,255,255,.4)",cursor:"pointer",fontFamily:F}}>📚 単元選択</button>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>start(su,sl)} style={{flex:1,background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:13,padding:"13px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F}}>🔄 もう一度</button>
+            <button onClick={()=>setSub("home")} style={{flex:1,background:"rgba(255,255,255,.2)",color:"#fff",fontWeight:900,fontSize:13,padding:"13px 0",borderRadius:14,border:"2px solid rgba(255,255,255,.4)",cursor:"pointer",fontFamily:F}}>📚 単元選択</button>
           </div>
-          <button onClick={back} style={{width:"100%",marginTop:9,background:"rgba(255,255,255,.1)",color:"rgba(255,255,255,.65)",fontWeight:900,fontSize:13,padding:"11px 0",borderRadius:13,border:"1px solid rgba(255,255,255,.18)",cursor:"pointer",fontFamily:F}}>🏠 メニューへ</button>
+          <button onClick={back} style={{width:"100%",marginTop:8,background:"rgba(255,255,255,.1)",color:"rgba(255,255,255,.6)",fontWeight:900,fontSize:12,padding:"10px 0",borderRadius:12,border:"1px solid rgba(255,255,255,.18)",cursor:"pointer",fontFamily:F}}>🏠 メニューへ</button>
         </div>
       </div>
     );
   }
+
   if(!q)return null;
-  const lm=LM[q.level]||{},um2=UM[q.unit]||{},prog=queue.length?(idx/queue.length)*100:0,correct=q.answer.filter(w=>w!==",");
+  const lm=LM[q.level]||{},um2=UM[q.unit]||{},prog=queue.length?(idx/queue.length)*100:0;
+  const correct=q.answer.filter(w=>w!==",");
+  const correctStr=correct.join(" ");
+
   return(
     <div style={{minHeight:"100vh",background:"#F0FDF4",fontFamily:F,paddingBottom:40}}>
-      <style>{G}</style>
-      <div style={{background:"linear-gradient(90deg,#059669,#10B981)",padding:"11px 14px 0"}}>
+      <div style={{background:"linear-gradient(90deg,#059669,#10B981)",padding:"10px 13px 0"}}>
         <div style={{maxWidth:500,margin:"0 auto"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
-            <div style={{display:"flex",alignItems:"center",gap:5}}>
-              <button onClick={()=>setSub("home")} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:11,padding:"4px 9px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← 戻る</button>
-              {su&&<span style={{background:"rgba(255,255,255,.22)",color:"#fff",fontWeight:900,fontSize:10,padding:"2px 8px",borderRadius:99}}>{um2.label}</span>}
-              {sl&&<span style={{background:lm.bg,color:lm.color,fontWeight:900,fontSize:10,padding:"2px 8px",borderRadius:99}}>{lm.label}</span>}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <button onClick={handleBack} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:10,padding:"4px 8px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← 単元選択</button>
+              <button onClick={handleBackToMenu} style={{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.3)",color:"rgba(255,255,255,.8)",fontWeight:900,fontSize:10,padding:"4px 8px",borderRadius:99,cursor:"pointer",fontFamily:F}}>🏠</button>
+              {su&&<span style={{background:"rgba(255,255,255,.22)",color:"#fff",fontWeight:900,fontSize:9,padding:"2px 7px",borderRadius:99}}>{um2.label}</span>}
+              {sl&&<span style={{background:lm.bg,color:lm.color,fontWeight:900,fontSize:9,padding:"2px 7px",borderRadius:99}}>{lm.label}</span>}
+              {combo>=3&&<span className="comboAnim" style={{background:combo>=6?"linear-gradient(90deg,#FF6B35,#FFD600)":"#FF6B35",color:"#fff",fontWeight:900,fontSize:9,padding:"2px 7px",borderRadius:99}}>🔥{combo}連続！</span>}
             </div>
-            <span style={{color:"rgba(255,255,255,.8)",fontWeight:900,fontSize:13,fontFamily:"'Nunito',sans-serif"}}><span style={{color:"#fff"}}>{idx+1}</span>/{queue.length}</span>
+            <span style={{color:"rgba(255,255,255,.8)",fontWeight:900,fontSize:12,fontFamily:"'Nunito',sans-serif"}}><span style={{color:"#fff"}}>{idx+1}</span>/{queue.length}</span>
           </div>
-          <div style={{height:9,background:"rgba(255,255,255,.25)",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${prog}%`,background:"#FFD600",borderRadius:99,transition:"width .5s"}}/></div>
+          <div style={{height:8,background:"rgba(255,255,255,.25)",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${prog}%`,background:"#FFD600",borderRadius:99,transition:"width .5s"}}/></div>
         </div>
       </div>
-      <div style={{maxWidth:500,margin:"0 auto",padding:"14px 14px 0"}}>
-        <div key={q.id} className={shaking?"shake":"pop"} style={{background:"#fff",border:"3px solid #059669",borderRadius:20,padding:"16px 18px",marginBottom:13}}>
-          <div style={{display:"flex",gap:7,marginBottom:9}}>
-            <span style={{background:"#059669",color:"#fff",fontSize:10,fontWeight:900,padding:"3px 10px",borderRadius:99}}>{q.topic}</span>
-            <span style={{background:lm.bg||"#D1FAE5",color:lm.color||"#059669",fontSize:10,fontWeight:900,padding:"3px 8px",borderRadius:99}}>{lm.label}</span>
+
+      <div style={{maxWidth:500,margin:"0 auto",padding:"12px 13px 0"}}>
+        {combo>=3&&phase==="question"&&<ComboDisplay combo={combo}/>}
+
+        <div key={q.id} className={shaking?"shake":"pop"} style={{background:"#fff",border:"3px solid #059669",borderRadius:18,padding:"14px 16px",marginBottom:12}}>
+          <div style={{display:"flex",gap:6,marginBottom:8}}>
+            <span style={{background:"#059669",color:"#fff",fontSize:9,fontWeight:900,padding:"3px 9px",borderRadius:99}}>{q.topic}</span>
+            <span style={{background:lm.bg||"#D1FAE5",color:lm.color||"#059669",fontSize:9,fontWeight:900,padding:"3px 7px",borderRadius:99}}>{lm.label}</span>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:11}}>
-            <span style={{fontSize:38,flexShrink:0}}>{q.emoji}</span>
-            <div><p style={{color:"#6B7280",fontSize:11,fontWeight:700,margin:"0 0 3px"}}>次の日本語を英語に直しましょう</p><p style={{color:"#1F2937",fontWeight:900,fontSize:19,margin:0,lineHeight:1.4}}>{q.japanese}</p></div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:34,flexShrink:0}}>{q.emoji}</span>
+            <div><p style={{color:"#6B7280",fontSize:10,fontWeight:700,margin:"0 0 2px"}}>次の日本語を英語に直しましょう</p><p style={{color:"#1F2937",fontWeight:900,fontSize:17,margin:0,lineHeight:1.4}}>{q.japanese}</p></div>
           </div>
         </div>
-        <div style={{background:"#fff",border:"2.5px solid #D1D5DB",borderRadius:16,padding:"13px",marginBottom:11}}>
-          <p style={{color:"#6B7280",fontSize:11,fontWeight:700,margin:"0 0 7px"}}>✏️ 並べた文（タップで戻す）</p>
-          <div style={{minHeight:50,background:"#F9FAFB",borderRadius:11,padding:"7px",display:"flex",flexWrap:"wrap",gap:6,marginBottom:12,border:"2px dashed #D1D5DB",alignItems:"center"}}>
-            {arr.length===0?<p style={{color:"#9CA3AF",fontSize:12,fontWeight:700,margin:"auto 0"}}>ここに単語が並びます…</p>:
-              arr.map(item=><button key={item.id} onClick={()=>{if(phase==="question")tapArr(item);}} style={{background:"#059669",color:"#fff",fontWeight:900,fontSize:14,padding:"6px 12px",borderRadius:9,border:"none",cursor:phase==="question"?"pointer":"default",fontFamily:"'Nunito',sans-serif",boxShadow:"0 2px 7px rgba(5,150,105,.35)"}}>{item.w}</button>)
+
+        <div style={{background:"#fff",border:"2.5px solid #D1D5DB",borderRadius:15,padding:"12px",marginBottom:10}}>
+          <p style={{color:"#6B7280",fontSize:10,fontWeight:700,margin:"0 0 6px"}}>✏️ 並べた文（タップで戻す）</p>
+          <div style={{minHeight:48,background:"#F9FAFB",borderRadius:10,padding:"6px",display:"flex",flexWrap:"wrap",gap:5,marginBottom:10,border:"2px dashed #D1D5DB",alignItems:"center"}}>
+            {arr.length===0?<p style={{color:"#9CA3AF",fontSize:11,fontWeight:700,margin:"auto 0"}}>ここに単語が並びます…</p>:
+              arr.map(item=><button key={item.id} onClick={()=>{if(phase==="question")tapArr(item);}} style={{background:"#059669",color:"#fff",fontWeight:900,fontSize:13,padding:"5px 11px",borderRadius:8,border:"none",cursor:phase==="question"?"pointer":"default",fontFamily:"'Nunito',sans-serif",boxShadow:"0 2px 6px rgba(5,150,105,.35)"}}>{item.w}</button>)
             }
           </div>
-          <p style={{color:"#6B7280",fontSize:11,fontWeight:700,margin:"0 0 7px"}}>📦 選択肢（タップして追加）</p>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {avail.map(item=><button key={item.id} onClick={()=>{if(phase==="question")tapAv(item);}} style={{background:"#F3F4F6",color:"#374151",fontWeight:900,fontSize:14,padding:"6px 12px",borderRadius:9,border:"2.5px solid #D1D5DB",cursor:phase==="question"?"pointer":"default",fontFamily:"'Nunito',sans-serif"}}>{item.w}</button>)}
+          <p style={{color:"#6B7280",fontSize:10,fontWeight:700,margin:"0 0 6px"}}>📦 選択肢（タップして追加）</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+            {avail.map(item=><button key={item.id} onClick={()=>{if(phase==="question")tapAv(item);}} style={{background:"#F3F4F6",color:"#374151",fontWeight:900,fontSize:13,padding:"5px 11px",borderRadius:8,border:"2.5px solid #D1D5DB",cursor:phase==="question"?"pointer":"default",fontFamily:"'Nunito',sans-serif"}}>{item.w}</button>)}
           </div>
         </div>
+
         {phase==="result"&&(
-          <div className="fadeUp" style={{background:result==="correct"?"#D1FAE5":"#FEE2E2",border:`3px solid ${result==="correct"?"#059669":"#DC2626"}`,borderRadius:16,padding:"13px 15px",marginBottom:11}}>
-            <p style={{fontWeight:900,fontSize:17,textAlign:"center",color:result==="correct"?"#065F46":"#991B1B",margin:"0 0 7px"}}>{result==="correct"?"🎉 正解！":"😅 不正解…"}</p>
-            {result==="wrong"&&<><p style={{color:"#991B1B",fontSize:11,fontWeight:700,margin:"0 0 5px"}}>正しい順番：</p><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{correct.map((w,i)=><span key={i} style={{background:"#059669",color:"#fff",fontWeight:900,fontSize:14,padding:"5px 10px",borderRadius:7,fontFamily:"'Nunito',sans-serif"}}>{w}</span>)}</div></>}
+          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:9}}>
+            <div style={{background:result==="correct"?"#D1FAE5":"#FEE2E2",border:`3px solid ${result==="correct"?"#059669":"#DC2626"}`,borderRadius:15,padding:"12px 14px"}}>
+              <p style={{fontWeight:900,fontSize:17,textAlign:"center",color:result==="correct"?"#065F46":"#991B1B",margin:"0 0 6px"}}>{result==="correct"?"🎉 "+(combo>=3?"コンボ継続！":"正解！"):"😅 不正解…"}</p>
+              {result==="wrong"&&(
+                <>
+                  <p style={{color:"#991B1B",fontSize:10,fontWeight:700,margin:"0 0 4px"}}>正しい順番：</p>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
+                    {correct.map((w,i)=><span key={i} style={{background:"#059669",color:"#fff",fontWeight:900,fontSize:13,padding:"4px 9px",borderRadius:6,fontFamily:"'Nunito',sans-serif"}}>{w}</span>)}
+                  </div>
+                </>
+              )}
+              <div style={{background:"rgba(255,255,255,.6)",borderRadius:10,padding:"9px"}}>
+                <p style={{color:"#065F46",fontWeight:900,fontSize:10,margin:"0 0 5px"}}>🔊 正解の文を音声で確認しよう</p>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                  <span style={{color:"#1F2937",fontWeight:900,fontSize:15,fontFamily:"'Nunito',sans-serif",flex:1}}>{correctStr}</span>
+                </div>
+                <SpeakButton text={correctStr} label="🔊 正解の文を聴く" color="#059669" size="large"/>
+              </div>
+            </div>
+
+            <button onClick={()=>setShowExpl(v=>!v)} style={{background:"#EDE9FE",color:"#6D28D9",fontWeight:900,fontSize:11,padding:"11px 0",borderRadius:12,border:"2px solid #C4B5FD",cursor:"pointer",fontFamily:F}}>
+              {showExpl?"▲ 文法解説を閉じる":"📖 文法解説を見る（なぜこの語順？）"}
+            </button>
+            <AiChatButton question={expl?.japanese || "並べ替え問題"} answer={correctStr} />
+
+            {showExpl&&expl&&(
+              <div className="fadeUp" style={{background:"#fff",border:"2.5px solid #C4B5FD",borderRadius:14,padding:"13px 14px",display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{background:"#EDE9FE",borderRadius:10,padding:"10px 12px"}}>
+                  <p style={{color:"#4C1D95",fontWeight:900,fontSize:11,margin:"0 0 4px"}}>📌 文法ルール</p>
+                  <p style={{color:"#5B21B6",fontWeight:700,fontSize:11,lineHeight:1.8,margin:0}}>{expl.rule||"この文の語順を確認しましょう。"}</p>
+                </div>
+                <div style={{background:"#F0FDF4",borderRadius:10,padding:"10px 12px"}}>
+                  <p style={{color:"#065F46",fontWeight:900,fontSize:11,margin:"0 0 6px"}}>✅ 各単語の役割</p>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:7}}>
+                    {correct.map((w,i)=><span key={i} style={{background:"#059669",color:"#fff",fontWeight:900,fontSize:14,padding:"5px 10px",borderRadius:7,fontFamily:"'Nunito',sans-serif"}}>{w}</span>)}
+                  </div>
+                  <p style={{color:"#374151",fontWeight:700,fontSize:10,lineHeight:2,margin:0}}>{expl.breakdown}</p>
+                </div>
+                <div style={{background:"#FFF7ED",borderRadius:10,padding:"9px 12px"}}>
+                  <p style={{color:"#92400E",fontWeight:900,fontSize:10,margin:"0 0 3px"}}>🇯🇵 日本語訳</p>
+                  <p style={{color:"#1F2937",fontWeight:700,fontSize:12,margin:0}}>{expl.japanese}</p>
+                </div>
+                <SpeakButton text={correctStr} label="🔊 もう一度音声で確認" color="#6D28D9"/>
+              </div>
+            )}
           </div>
         )}
-        {phase==="question"&&<button onClick={check} disabled={arr.length===0} style={{width:"100%",background:arr.length>0?"#FFD600":"#E5E7EB",color:arr.length>0?"#1A1A2E":"#9CA3AF",fontWeight:900,fontSize:15,padding:"14px 0",borderRadius:17,border:"none",cursor:arr.length>0?"pointer":"not-allowed",fontFamily:F}}>✅ 答えを確認する</button>}
-        {phase==="result"&&<button onClick={next} style={{width:"100%",background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:16,padding:"15px 0",borderRadius:17,border:"none",cursor:"pointer",fontFamily:F,boxShadow:"0 5px 18px rgba(255,214,0,.45)"}}>{idx+1>=queue.length?"🏁 結果を見る！":"次の問題へ →"}</button>}
+
+        {phase==="question"&&<button onClick={check} disabled={arr.length===0} style={{width:"100%",background:arr.length>0?"#FFD600":"#E5E7EB",color:arr.length>0?"#1A1A2E":"#9CA3AF",fontWeight:900,fontSize:14,padding:"13px 0",borderRadius:16,border:"none",cursor:arr.length>0?"pointer":"not-allowed",fontFamily:F}}>✅ 答えを確認する</button>}
+        {phase==="result"&&<button onClick={next} style={{width:"100%",background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:15,padding:"14px 0",borderRadius:16,border:"none",cursor:"pointer",fontFamily:F,boxShadow:"0 5px 18px rgba(255,214,0,.45)"}}>{idx+1>=queue.length?"🏁 結果を見る！":"次の問題へ →"}</button>}
       </div>
     </div>
   );
 }
 
-/* ── Word Quiz ── */
-function WordQuiz({bank,wp,saveWP,addHist,back}){
+/* ═══════════════ WORD QUIZ ═══════════════ */
+function WordQuiz({bank,wp,saveWP,srsData,saveSRS,addHist,addXP,back}){
   const [sub,setSub]=useState("level");
   const [sl,setSl]=useState(1);
   const [sm,setSm]=useState(null);
@@ -706,51 +1197,108 @@ function WordQuiz({bank,wp,saveWP,addHist,back}){
   const [result,setResult]=useState(null);
   const [score,setScore]=useState({c:0,t:0});
   const [shaking,setShaking]=useState(false);
+  const [startTime,setStartTime]=useState(0);
+  const [combo,setCombo]=useState(0);
+
   const levels=[...new Set(bank.map(w=>w.level))].sort((a,b)=>a-b);
+
   const bldC=(q,mode)=>{
-    if(mode==="en2ja"){const p=bank.filter(w=>w.japanese!==q.japanese).map(w=>w.japanese);return shuf([q.japanese,...shuf(p).slice(0,3)]);}
+    if(mode==="en2ja"||mode==="phrase"){const p=bank.filter(w=>w.japanese!==q.japanese).map(w=>w.japanese);return shuf([q.japanese,...shuf(p).slice(0,3)]);}
     const p=bank.filter(w=>w.english!==q.english).map(w=>w.english);return shuf([q.english,...shuf(p).slice(0,3)]);
   };
+
+  const handleBackToMode = useCallback(() => { setSub("mode"); },[]);
+  const handleBackToMenu = useCallback(() => { back(); },[back]);
+
   const start=useCallback((level,mode)=>{
-    const pool=shuf(bank.filter(w=>w.level===level));setQueue(pool);setSl(level);setSm(mode);
-    setIdx(0);setScore({c:0,t:0});setPhase("question");setChosen(null);setInp("");setResult(null);
-    if(mode!=="spell"&&pool[0])setChoices(bldC(pool[0],mode));setSub("quiz");
-  },[bank]);
-  useEffect(()=>{if(queue[idx]&&sm&&sm!=="spell")setChoices(bldC(queue[idx],sm));setChosen(null);setInp("");setResult(null);setPhase("question");},[idx,queue]);
+    let pool=bank.filter(w=>w.level===level);
+    pool=srsSortPool(pool,srsData);
+    setQueue(pool);setSl(level);setSm(mode);
+    setIdx(0);setScore({c:0,t:0});setPhase("question");setChosen(null);setInp("");setResult(null);setCombo(0);
+    if(mode!=="spell"&&mode!=="phrase"&&pool[0])setChoices(bldC(pool[0],mode));
+    setSub("quiz");setStartTime(Date.now());
+  },[bank,srsData]);
+
+  useEffect(()=>{
+    if(queue[idx]&&sm&&sm!=="spell"&&sm!=="phrase")setChoices(bldC(queue[idx],sm));
+    setChosen(null);setInp("");setResult(null);setPhase("question");setStartTime(Date.now());
+  },[idx,queue]);
+
   const q=queue[idx];
-  const doConf=()=>{
+
+  const PRAISE=["すごい！🌟","やったね！🎊","かんぺき！✨","さすが！🏆","大正解！🎯","ばっちり！💫","よくできました！⭐","天才！🧠"];
+  const RETRY=["もう一回チャレンジ！💪","ドンマイ！次は正解できるよ！😊","惜しい！もう一度！🔥","練習あるのみ！📚","次はきっと正解！⭐"];
+  const [praiseIdx]=useState(()=>Math.floor(Math.random()*PRAISE.length));
+  const [retryIdx]=useState(()=>Math.floor(Math.random()*RETRY.length));
+
+  const doConfDirect=(answer)=>{
     if(!q)return;
-    let ok=sm==="en2ja"?chosen===q.japanese:sm==="ja2en"?chosen===q.english:inp.trim().toLowerCase()===q.english.toLowerCase();
-    setResult(ok?"correct":"wrong");if(!ok){setShaking(true);setTimeout(()=>setShaking(false),600);}
-    setScore(s=>({c:s.c+(ok?1:0),t:s.t+1}));setPhase("result");
+    const timeMs=Date.now()-startTime;
+    let ok=sm==="en2ja"?answer===q.japanese
+          :sm==="ja2en"?answer===q.english
+          :sm==="phrase"?answer===q.japanese:false;
+    setChosen(answer);
+    setResult(ok?"correct":"wrong");
+    if(!ok){setShaking(true);setTimeout(()=>setShaking(false),600);}
+    const newCombo=ok?combo+1:0;setCombo(newCombo);
+    setScore(s=>{
+      const ns={c:s.c+(ok?1:0),t:s.t+1};
+      addHist({mode:"word",label:`Lv${sl} ${WM.find(m=>m.key===sm)?.label||""}`,correct:ns.c,total:ns.t});
+      return ns;
+    });
+    const grade=srsGrade(ok,timeMs);
+    const rec=srsData[q.id]||srsDefault();
+    saveSRS({...srsData,[q.id]:srsUpdate(rec,grade)});
+    if(ok)addXP(XP_PER_CORRECT+(newCombo>=3?XP_BONUS_STREAK:0),null);
+    setPhase("result");
   };
+
+  const doConfSpell=()=>{
+    if(!q)return;
+    const timeMs=Date.now()-startTime;
+    const ok=inp.trim().toLowerCase()===q.english.toLowerCase();
+    setResult(ok?"correct":"wrong");
+    if(!ok){setShaking(true);setTimeout(()=>setShaking(false),600);}
+    const newCombo=ok?combo+1:0;setCombo(newCombo);
+    setScore(s=>{
+      const ns={c:s.c+(ok?1:0),t:s.t+1};
+      addHist({mode:"word",label:`Lv${sl} ${WM.find(m=>m.key===sm)?.label||""}`,correct:ns.c,total:ns.t});
+      return ns;
+    });
+    const grade=srsGrade(ok,timeMs);
+    const rec=srsData[q.id]||srsDefault();
+    saveSRS({...srsData,[q.id]:srsUpdate(rec,grade)});
+    if(ok)addXP(XP_PER_CORRECT+(newCombo>=3?XP_BONUS_STREAK:0),null);
+    setPhase("result");
+  };
+
   const doNext=()=>{
     if(idx+1>=queue.length){
       const pct=score.t?Math.round(score.c/score.t*100):0;
-      const np={...wp,[String(sl)]:{pct,sess:(wp[String(sl)]?.sess||0)+1}};saveWP(np);
-      addHist({mode:"word",label:`Lv${sl} ${WM.find(m=>m.key===sm)?.label||""}`,correct:score.c,total:score.t});setSub("complete");
-    } else setIdx(i=>i+1);
+      saveWP({...wp,[String(sl)]:{pct,sess:(wp[String(sl)]?.sess||0)+1}});
+      setSub("complete");
+    }else setIdx(i=>i+1);
   };
+
   if(sub==="level") return(
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#7F1D1D,#DC2626,#F59E0B)",fontFamily:F,padding:"16px 16px 36px",overflowY:"auto"}}>
-      <style>{G}</style>
       <div style={{maxWidth:480,margin:"0 auto"}}>
-        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:13}}>
           <button onClick={back} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:12,padding:"6px 12px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← メニュー</button>
-          <h2 style={{color:"#fff",fontWeight:900,fontSize:17,margin:0}}>📖 単語問題</h2>
+          <h2 style={{color:"#fff",fontWeight:900,fontSize:16,margin:0}}>📖 単語問題</h2>
         </div>
-        <div style={{background:"rgba(255,255,255,.12)",borderRadius:12,padding:"9px 13px",marginBottom:14}}>
-          <p style={{color:"#fff",fontWeight:700,fontSize:12,margin:0,lineHeight:1.7}}>📚 Lv1〜20で中学英単語をマスターしよう！<br/>Lv1-5:基本語 / Lv6-10:重要語 / Lv11-15:応用語 / Lv16-20:発展語</p>
+        <div style={{background:"rgba(255,255,255,.12)",borderRadius:11,padding:"8px 12px",marginBottom:12}}>
+          <p style={{color:"#fff",fontWeight:700,fontSize:11,margin:0,lineHeight:1.7}}>📚 Lv1〜20で中学英単語をマスター！<br/>💬 フレーズモードでチャンクごと覚えよう！</p>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:7}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
           {levels.map(lv=>{
             const p=wp[String(lv)];const col=p?.pct>=80?"#10B981":p?.pct>=60?"#F59E0B":"rgba(255,255,255,.3)";
             return(
-              <button key={lv} onClick={()=>{setSl(lv);setSub("mode");}} style={{background:"rgba(255,255,255,.1)",border:`2px solid ${p?col:"rgba(255,255,255,.18)"}`,borderRadius:13,padding:"11px 5px",cursor:"pointer",textAlign:"center",fontFamily:F,position:"relative"}}>
-                <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:18,color:"#fff"}}>Lv{lv}</div>
-                <div style={{color:"rgba(255,255,255,.55)",fontSize:10,fontWeight:700}}>{bank.filter(w=>w.level===lv).length}語</div>
-                {p&&<div style={{color:col,fontSize:10,fontWeight:900,marginTop:2}}>{p.pct}%</div>}
-                {p?.pct>=80&&<div style={{position:"absolute",top:-4,right:-4,fontSize:13}}>🌟</div>}
+              <button key={lv} onClick={()=>{setSl(lv);setSub("mode");}} style={{background:"rgba(255,255,255,.1)",border:`2px solid ${p?col:"rgba(255,255,255,.18)"}`,borderRadius:12,padding:"10px 4px",cursor:"pointer",textAlign:"center",fontFamily:F,position:"relative"}}>
+                <div style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:17,color:"#fff"}}>Lv{lv}</div>
+                <div style={{color:"rgba(255,255,255,.55)",fontSize:9,fontWeight:700}}>{bank.filter(w=>w.level===lv).length}語</div>
+                {p&&<div style={{color:col,fontSize:9,fontWeight:900,marginTop:1}}>{p.pct}%</div>}
+                {p?.pct>=80&&<div style={{position:"absolute",top:-3,right:-3,fontSize:12}}>🌟</div>}
               </button>
             );
           })}
@@ -758,122 +1306,154 @@ function WordQuiz({bank,wp,saveWP,addHist,back}){
       </div>
     </div>
   );
+
   if(sub==="mode") return(
     <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#7F1D1D,#DC2626,#F59E0B)",fontFamily:F,padding:"16px 16px 36px",overflowY:"auto"}}>
-      <style>{G}</style>
       <div style={{maxWidth:480,margin:"0 auto"}}>
-        <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:18}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
           <button onClick={()=>setSub("level")} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:12,padding:"6px 12px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← 戻る</button>
-          <h2 style={{color:"#fff",fontWeight:900,fontSize:17,margin:0}}>📖 Lv{sl} — モード選択</h2>
+          <h2 style={{color:"#fff",fontWeight:900,fontSize:16,margin:0}}>📖 Lv{sl} — モード選択</h2>
         </div>
-        <div style={{display:"flex",flexDirection:"column",gap:11}}>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {WM.map(m=>(
-            <button key={m.key} onClick={()=>start(sl,m.key)} style={{background:"rgba(255,255,255,.1)",border:"2px solid rgba(255,255,255,.18)",borderRadius:17,padding:"15px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:13,fontFamily:F,width:"100%",textAlign:"left"}}>
-              <div style={{width:46,height:46,borderRadius:13,background:`linear-gradient(135deg,${m.color},${m.color}aa)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{m.emoji}</div>
-              <div style={{flex:1}}><p style={{color:"#fff",fontWeight:900,fontSize:15,margin:"0 0 2px",fontFamily:"'Nunito',sans-serif"}}>{m.label}</p><p style={{color:"rgba(255,255,255,.5)",fontSize:11,fontWeight:700,margin:0}}>{m.desc}</p></div>
-              <span style={{color:"rgba(255,255,255,.45)",fontSize:20}}>›</span>
+            <button key={m.key} onClick={()=>start(sl,m.key)} style={{background:"rgba(255,255,255,.1)",border:"2px solid rgba(255,255,255,.18)",borderRadius:16,padding:"14px 15px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,fontFamily:F,width:"100%",textAlign:"left"}}>
+              <div style={{width:44,height:44,borderRadius:12,background:`linear-gradient(135deg,${m.color},${m.color}aa)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{m.emoji}</div>
+              <div style={{flex:1}}><p style={{color:"#fff",fontWeight:900,fontSize:14,margin:"0 0 2px",fontFamily:"'Nunito',sans-serif"}}>{m.label}</p><p style={{color:"rgba(255,255,255,.5)",fontSize:10,fontWeight:700,margin:0}}>{m.desc}</p></div>
+              <span style={{color:"rgba(255,255,255,.45)",fontSize:18}}>›</span>
             </button>
           ))}
         </div>
       </div>
     </div>
   );
+
   if(sub==="complete"){
     const pct=score.t?Math.round(score.c/score.t*100):0;
     return(
       <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#7F1D1D,#DC2626,#F59E0B)",fontFamily:F,padding:"20px 16px 40px",overflowY:"auto"}}>
-        <style>{G}</style>
+        <Fireworks show={pct===100}/>
         <div className="pop" style={{maxWidth:440,margin:"0 auto",textAlign:"center"}}>
-          <div style={{fontSize:70}}>{pct===100?"🏆":pct>=60?"💪":"📖"}</div>
-          <h2 style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:32,color:"#fff",margin:"0 0 3px"}}>おわり！</h2>
-          <div style={{background:"#fff",borderRadius:20,padding:"22px",marginBottom:14}}>
-            <div style={{fontSize:58,fontWeight:900,color:pct>=60?"#059669":"#DC2626",fontFamily:"'Nunito',sans-serif",lineHeight:1}}>{pct}<span style={{fontSize:28}}>%</span></div>
-            <p style={{color:"#374151",fontWeight:700,fontSize:15,margin:"5px 0 14px"}}>{score.c} / {score.t} 問正解</p>
-            <div style={{height:13,background:"#E5E7EB",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:pct>=60?"#059669":"#DC2626",borderRadius:99,transition:"width 1s"}}/></div>
+          <div style={{fontSize:66}}>{pct===100?"🏆":pct>=60?"💪":"📖"}</div>
+          <h2 style={{fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:30,color:"#fff",margin:"0 0 3px"}}>{pct===100?"パーフェクト！":"おわり！"}</h2>
+          <div style={{background:"#fff",borderRadius:18,padding:"20px",marginBottom:12}}>
+            <div style={{fontSize:54,fontWeight:900,color:pct>=60?"#059669":"#DC2626",fontFamily:"'Nunito',sans-serif",lineHeight:1}}>{pct}<span style={{fontSize:26}}>%</span></div>
+            <p style={{color:"#374151",fontWeight:700,fontSize:14,margin:"4px 0 12px"}}>{score.c} / {score.t} 問正解</p>
+            <div style={{height:12,background:"#E5E7EB",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:pct>=60?"#059669":"#DC2626",borderRadius:99,transition:"width 1s"}}/></div>
           </div>
-          <div style={{display:"flex",gap:9}}>
-            <button onClick={()=>start(sl,sm)} style={{flex:1,background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:14,padding:"13px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:F}}>🔄 もう一度</button>
-            <button onClick={()=>setSub("mode")} style={{flex:1,background:"rgba(255,255,255,.2)",color:"#fff",fontWeight:900,fontSize:14,padding:"13px 0",borderRadius:14,border:"2px solid rgba(255,255,255,.4)",cursor:"pointer",fontFamily:F}}>📋 モード変更</button>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>start(sl,sm)} style={{flex:1,background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:13,padding:"12px 0",borderRadius:13,border:"none",cursor:"pointer",fontFamily:F}}>🔄 もう一度</button>
+            <button onClick={()=>setSub("mode")} style={{flex:1,background:"rgba(255,255,255,.2)",color:"#fff",fontWeight:900,fontSize:13,padding:"12px 0",borderRadius:13,border:"2px solid rgba(255,255,255,.4)",cursor:"pointer",fontFamily:F}}>📋 モード変更</button>
           </div>
-          <button onClick={()=>setSub("level")} style={{width:"100%",marginTop:8,background:"rgba(255,255,255,.1)",color:"rgba(255,255,255,.65)",fontWeight:900,fontSize:13,padding:"11px 0",borderRadius:13,border:"1px solid rgba(255,255,255,.18)",cursor:"pointer",fontFamily:F}}>📚 レベル選択</button>
-          <button onClick={back} style={{width:"100%",marginTop:7,background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.45)",fontWeight:900,fontSize:13,padding:"11px 0",borderRadius:13,border:"1px solid rgba(255,255,255,.1)",cursor:"pointer",fontFamily:F}}>🏠 メニューへ</button>
+          <button onClick={()=>setSub("level")} style={{width:"100%",marginTop:7,background:"rgba(255,255,255,.1)",color:"rgba(255,255,255,.65)",fontWeight:900,fontSize:12,padding:"10px 0",borderRadius:12,border:"1px solid rgba(255,255,255,.18)",cursor:"pointer",fontFamily:F}}>📚 レベル選択</button>
+          <button onClick={back} style={{width:"100%",marginTop:6,background:"rgba(255,255,255,.06)",color:"rgba(255,255,255,.45)",fontWeight:900,fontSize:12,padding:"10px 0",borderRadius:12,border:"1px solid rgba(255,255,255,.1)",cursor:"pointer",fontFamily:F}}>🏠 メニューへ</button>
         </div>
       </div>
     );
   }
+
   if(!q)return null;
-  const mi=WM.find(m=>m.key===sm)||WM[0],prog=queue.length?(idx/queue.length)*100:0;
-  const isSpell=sm==="spell",isEn=sm==="en2ja",qWord=isEn?q.english:q.japanese,corrAns=isEn?q.japanese:q.english;
+  const mi=WM.find(m=>m.key===sm)||WM[0];
+  const prog=queue.length?(idx/queue.length)*100:0;
+  const isSpell=sm==="spell",isPhrase=sm==="phrase",isEn=sm==="en2ja";
+  const qWord=isEn||isPhrase?q.english:q.japanese;
+  const showSpeakOnQuestion = isEn || isPhrase;
+
   return(
     <div style={{minHeight:"100vh",background:"#FFF7ED",fontFamily:F,paddingBottom:44}}>
-      <style>{G}</style>
-      <div style={{background:"linear-gradient(90deg,#DC2626,#F59E0B)",padding:"11px 14px 0"}}>
+      <div style={{background:"linear-gradient(90deg,#DC2626,#F59E0B)",padding:"10px 13px 0"}}>
         <div style={{maxWidth:500,margin:"0 auto"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
-            <div style={{display:"flex",alignItems:"center",gap:5}}>
-              <button onClick={()=>setSub("mode")} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:11,padding:"4px 9px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← 戻る</button>
-              <span style={{background:"rgba(255,255,255,.22)",color:"#fff",fontWeight:900,fontSize:10,padding:"2px 8px",borderRadius:99}}>Lv{sl}</span>
-              <span style={{background:"rgba(255,255,255,.18)",color:"#fff",fontWeight:700,fontSize:10,padding:"2px 8px",borderRadius:99}}>{mi.label}</span>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <button onClick={handleBackToMode} style={{background:"rgba(255,255,255,.2)",border:"none",color:"#fff",fontWeight:900,fontSize:10,padding:"4px 8px",borderRadius:99,cursor:"pointer",fontFamily:F}}>← モード選択</button>
+              <button onClick={handleBackToMenu} style={{background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.3)",color:"rgba(255,255,255,.8)",fontWeight:900,fontSize:10,padding:"4px 8px",borderRadius:99,cursor:"pointer",fontFamily:F}}>🏠</button>
+              <span style={{background:"rgba(255,255,255,.22)",color:"#fff",fontWeight:900,fontSize:9,padding:"2px 7px",borderRadius:99}}>Lv{sl}</span>
+              <span style={{background:"rgba(255,255,255,.18)",color:"#fff",fontWeight:700,fontSize:9,padding:"2px 7px",borderRadius:99}}>{mi.label}</span>
+              {combo>=3&&<span className="comboAnim" style={{background:combo>=6?"linear-gradient(90deg,#FF6B35,#FFD600)":"#FF6B35",color:"#fff",fontWeight:900,fontSize:9,padding:"2px 7px",borderRadius:99}}>🔥{combo}連続！</span>}
             </div>
-            <span style={{color:"rgba(255,255,255,.8)",fontWeight:900,fontSize:13,fontFamily:"'Nunito',sans-serif"}}><span style={{color:"#fff"}}>{idx+1}</span>/{queue.length}</span>
+            <span style={{color:"rgba(255,255,255,.8)",fontWeight:900,fontSize:12,fontFamily:"'Nunito',sans-serif"}}><span style={{color:"#fff"}}>{idx+1}</span>/{queue.length}</span>
           </div>
-          <div style={{height:9,background:"rgba(255,255,255,.25)",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${prog}%`,background:"#FFD600",borderRadius:99,transition:"width .5s"}}/></div>
+          <div style={{height:8,background:"rgba(255,255,255,.25)",borderRadius:99,overflow:"hidden"}}><div style={{height:"100%",width:`${prog}%`,background:"#FFD600",borderRadius:99,transition:"width .5s"}}/></div>
         </div>
       </div>
-      <div style={{maxWidth:500,margin:"0 auto",padding:"14px 14px 0"}}>
-        <div key={q.id} className={shaking?"shake":"pop"} style={{background:"#fff",border:"3px solid #DC2626",borderRadius:20,padding:"20px",marginBottom:14,textAlign:"center"}}>
-          <span style={{background:`linear-gradient(135deg,${mi.color},${mi.color}bb)`,color:"#fff",fontSize:10,fontWeight:900,padding:"3px 11px",borderRadius:99,display:"inline-block",marginBottom:12}}>{mi.emoji} {mi.label}</span>
-          <p style={{color:"#6B7280",fontSize:11,fontWeight:700,margin:"0 0 7px"}}>
-            {isSpell?"この日本語の英単語を入力してください":isEn?"この英単語の日本語の意味を選んでください":"この日本語に対応する英単語を選んでください"}
+
+      <div style={{maxWidth:500,margin:"0 auto",padding:"12px 13px 0"}}>
+        {combo>=3&&phase==="question"&&<ComboDisplay combo={combo}/>}
+
+        <div key={q.id} className={shaking?"shake":"pop"} style={{background:"#fff",border:"3px solid #DC2626",borderRadius:18,padding:"18px",marginBottom:13}}>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:10}}>
+            <span style={{background:`linear-gradient(135deg,${mi.color},${mi.color}bb)`,color:"#fff",fontSize:9,fontWeight:900,padding:"3px 10px",borderRadius:99}}>{mi.emoji} {mi.label}</span>
+          </div>
+          <p style={{color:"#6B7280",fontSize:10,fontWeight:700,margin:"0 0 6px",textAlign:"center"}}>
+            {isSpell?"この日本語の英単語を入力してください":isEn?"この英単語の日本語の意味を選んでください":isPhrase?"このフレーズの意味を選んでください":"この日本語に対応する英単語を選んでください"}
           </p>
-          <p style={{color:"#1F2937",fontWeight:900,fontSize:26,margin:"0 0 3px",fontFamily:"'Nunito',sans-serif",lineHeight:1.3}}>{qWord}</p>
-          {!isEn&&<p style={{color:"#9CA3AF",fontSize:11,fontWeight:700,margin:0}}>品詞：{q.type}</p>}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+            <p style={{color:"#1F2937",fontWeight:900,fontSize:isPhrase?19:26,margin:0,fontFamily:"'Nunito',sans-serif",lineHeight:1.3,textAlign:"center"}}>{qWord}</p>
+            {showSpeakOnQuestion && phase==="question" && (
+              <SpeakIcon text={q.english} size={46}/>
+            )}
+          </div>
+          {isPhrase&&q.phrase&&<p style={{color:"#9CA3AF",fontSize:10,fontWeight:700,margin:"6px 0 0",textAlign:"center"}}>💬 フレーズ：{q.phrase}</p>}
+          {!isEn&&!isPhrase&&<p style={{color:"#9CA3AF",fontSize:10,fontWeight:700,margin:"4px 0 0",textAlign:"center"}}>品詞：{q.type}</p>}
+          {isSpell&&<p style={{color:"#9CA3AF",fontSize:10,fontWeight:700,margin:"6px 0 0",textAlign:"center"}}>ヒント：最初の文字「{q.english[0]}」　{q.english.length}文字</p>}
+          {!showSpeakOnQuestion && phase==="question" && (
+            <div style={{marginTop:10,display:"flex",justifyContent:"center"}}>
+              <button onClick={()=>speak(q.english,0.82)}
+                style={{background:"rgba(220,38,38,.08)",border:"1.5px solid rgba(220,38,38,.25)",color:"#DC2626",fontWeight:700,fontSize:10,padding:"5px 14px",borderRadius:99,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:5}}>
+                <span style={{fontSize:13}}>🔊</span> 英語の発音を聴く（ヒント）
+              </button>
+            </div>
+          )}
         </div>
+
         {!isSpell&&phase==="question"&&(
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
             {choices.map((c,i)=>(
-              <button key={i} className="fadeUp" style={{animationDelay:`${i*50}ms`,display:"flex",alignItems:"center",gap:13,background:"#fff",border:`3px solid ${OC[i]}`,borderRadius:16,padding:"13px 15px",cursor:"pointer",fontFamily:F,width:"100%"}} onClick={()=>{if(phase==="question"){setChosen(c);setPhase("confirm");}}}>
-                <span style={{background:OC[i],color:"#fff",fontWeight:900,fontSize:12,width:30,height:30,borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontFamily:"'Nunito',sans-serif"}}>{OL[i]}</span>
+              <button key={i} className="fadeUp" style={{animationDelay:`${i*45}ms`,display:"flex",alignItems:"center",gap:12,background:"#fff",border:`3px solid ${OC[i]}`,borderRadius:15,padding:"13px 15px",cursor:"pointer",fontFamily:F,width:"100%",boxShadow:`0 3px 10px ${OC[i]}22`}}
+                onClick={()=>{if(phase==="question")doConfDirect(c);}}>
+                <span style={{background:OC[i],color:"#fff",fontWeight:900,fontSize:13,width:32,height:32,borderRadius:99,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontFamily:"'Nunito',sans-serif"}}>{OL[i]}</span>
                 <span style={{color:"#111827",fontWeight:900,fontSize:16,fontFamily:"'Nunito',sans-serif"}}>{c}</span>
               </button>
             ))}
           </div>
         )}
-        {!isSpell&&phase==="confirm"&&(
-          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:11}}>
-            <div style={{background:"#EDE9FE",border:"3px solid #7C3AED",borderRadius:20,padding:"17px",textAlign:"center"}}>
-              <div style={{fontSize:42,marginBottom:7}}>🗣️</div>
-              <p style={{color:"#1F2937",fontWeight:900,fontSize:15,margin:"0 0 7px"}}>選んだ答え：<span style={{color:"#7C3AED",fontFamily:"'Nunito',sans-serif",fontSize:17}}>{chosen}</span></p>
-              <p style={{color:"#5B21B6",fontWeight:700,fontSize:12,margin:0}}>声に出して覚えてから確認ボタンを押そう！</p>
-            </div>
-            <button onClick={doConf} style={{background:"#7C3AED",color:"#fff",fontWeight:900,fontSize:15,padding:"14px 0",borderRadius:16,border:"none",cursor:"pointer",fontFamily:F}}>✅ 確認する</button>
-            <button onClick={()=>{setChosen(null);setPhase("question");}} style={{background:"#fff",color:"#6B7280",fontWeight:700,fontSize:13,padding:"11px 0",borderRadius:13,border:"2px solid #D1D5DB",cursor:"pointer",fontFamily:F}}>← 選択肢に戻る</button>
-          </div>
-        )}
+
         {isSpell&&phase==="question"&&(
-          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:11}}>
-            <div style={{background:"#fff",border:"2.5px solid #D1D5DB",borderRadius:16,padding:"14px"}}>
-              <p style={{color:"#6B7280",fontSize:11,fontWeight:700,margin:"0 0 9px"}}>英単語を入力してください（大文字・小文字どちらでも可）</p>
-              <input value={inp} onChange={e=>setInp(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&inp.trim())doConf();}} placeholder="英単語を入力…"
-                style={{width:"100%",background:"#F9FAFB",border:"2.5px solid #E5E7EB",borderRadius:11,padding:"12px 14px",fontSize:19,fontWeight:700,fontFamily:"'Nunito',sans-serif",outline:"none",color:"#1F2937",letterSpacing:1}}
+          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{background:"#fff",border:"2.5px solid #D1D5DB",borderRadius:15,padding:"13px"}}>
+              <p style={{color:"#6B7280",fontSize:10,fontWeight:700,margin:"0 0 8px"}}>英単語を入力してください（大文字・小文字どちらでも可）</p>
+              <input value={inp} onChange={e=>setInp(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&inp.trim())doConfSpell();}} placeholder="英単語を入力…"
+                style={{width:"100%",background:"#F9FAFB",border:"2.5px solid #E5E7EB",borderRadius:10,padding:"11px 13px",fontSize:18,fontWeight:700,fontFamily:"'Nunito',sans-serif",color:"#1F2937",letterSpacing:1}}
                 autoFocus/>
             </div>
-            <button onClick={doConf} disabled={!inp.trim()} style={{background:inp.trim()?"#DC2626":"#E5E7EB",color:inp.trim()?"#fff":"#9CA3AF",fontWeight:900,fontSize:15,padding:"14px 0",borderRadius:16,border:"none",cursor:inp.trim()?"pointer":"not-allowed",fontFamily:F}}>✅ 答える</button>
+            <button onClick={doConfSpell} disabled={!inp.trim()} style={{background:inp.trim()?"#DC2626":"#E5E7EB",color:inp.trim()?"#fff":"#9CA3AF",fontWeight:900,fontSize:14,padding:"13px 0",borderRadius:15,border:"none",cursor:inp.trim()?"pointer":"not-allowed",fontFamily:F}}>✅ 答える</button>
           </div>
         )}
+
         {phase==="result"&&(
-          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:11}}>
-            <div style={{background:result==="correct"?"#D1FAE5":"#FEE2E2",border:`3px solid ${result==="correct"?"#059669":"#DC2626"}`,borderRadius:20,padding:"16px",textAlign:"center"}}>
-              <div style={{fontSize:50}}>{result==="correct"?"🎉":"😅"}</div>
-              <p style={{color:result==="correct"?"#065F46":"#991B1B",fontWeight:900,fontSize:20,margin:"3px 0 7px",fontFamily:"'Nunito',sans-serif"}}>{result==="correct"?"正解！":"不正解…"}</p>
-              <div style={{background:"rgba(255,255,255,.55)",borderRadius:13,padding:"11px 14px"}}>
-                <p style={{color:"#374151",fontSize:11,fontWeight:700,margin:"0 0 3px"}}>英語</p>
-                <p style={{color:"#1F2937",fontWeight:900,fontSize:22,margin:"0 0 7px",fontFamily:"'Nunito',sans-serif"}}>{q.english}</p>
-                <p style={{color:"#374151",fontSize:11,fontWeight:700,margin:"0 0 3px"}}>日本語</p>
-                <p style={{color:"#374151",fontWeight:900,fontSize:16,margin:0}}>{q.japanese}</p>
+          <div className="fadeUp" style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{background:result==="correct"?"#D1FAE5":"#FEE2E2",border:`3px solid ${result==="correct"?"#059669":"#DC2626"}`,borderRadius:18,padding:"16px"}}>
+              <div style={{textAlign:"center",marginBottom:10}}>
+                <div style={{fontSize:50}}>{result==="correct"?"🎉":"😅"}</div>
+                <p style={{color:result==="correct"?"#065F46":"#991B1B",fontWeight:900,fontSize:20,margin:"4px 0 0",fontFamily:"'Nunito',sans-serif"}}>
+                  {result==="correct"?PRAISE[praiseIdx]:RETRY[retryIdx]}
+                </p>
+                {result==="wrong"&&<p style={{color:"#991B1B",fontSize:12,fontWeight:700,margin:"4px 0 0"}}>正解は「{sm==="en2ja"||sm==="phrase"?q.japanese:q.english}」でした</p>}
+              </div>
+              <div style={{background:"rgba(255,255,255,.7)",borderRadius:12,padding:"13px 15px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:4}}>
+                      <p style={{color:"#1F2937",fontWeight:900,fontSize:24,margin:0,fontFamily:"'Nunito',sans-serif"}}>{q.english}</p>
+                      <SpeakIcon text={q.english} size={46}/>
+                    </div>
+                    <p style={{color:"#374151",fontWeight:700,fontSize:14,margin:0}}>{q.japanese}</p>
+                    {q.phrase&&<p style={{color:"#6B7280",fontSize:10,fontWeight:700,margin:"5px 0 0",lineHeight:1.6}}>💬 {q.phrase}</p>}
+                  </div>
+                </div>
+                <SpeakButton text={q.english} label="🔊 発音を聴く" color="#DC2626" size="large"/>
               </div>
             </div>
-            <button onClick={doNext} style={{background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:16,padding:"15px 0",borderRadius:17,border:"none",cursor:"pointer",fontFamily:F,boxShadow:"0 5px 18px rgba(255,214,0,.45)"}}>{idx+1>=queue.length?"🏁 結果を見る！":"次の問題へ →"}</button>
+            <button onClick={doNext} style={{background:"#FFD600",color:"#1A1A2E",fontWeight:900,fontSize:15,padding:"14px 0",borderRadius:16,border:"none",cursor:"pointer",fontFamily:F,boxShadow:"0 5px 18px rgba(255,214,0,.45)"}}>{idx+1>=queue.length?"🏁 結果を見る！":"次の問題へ →"}</button>
           </div>
         )}
       </div>
@@ -881,15 +1461,28 @@ function WordQuiz({bank,wp,saveWP,addHist,back}){
   );
 }
 
-/* ── 起動 ── */
+/* ═══════════════ BOOTSTRAP ═══════════════ */
 Promise.all([
   fetch("questions.json").then(r=>r.json()).catch(()=>[]),
   fetch("sort_questions.json").then(r=>r.json()).catch(()=>[]),
   fetch("words.json").then(r=>r.json()).catch(()=>[]),
 ]).then(([fb,sb,wb])=>{
-  ReactDOM.createRoot(document.getElementById("root")).render(<App fillBank={fb} sortBank={sb} wordBank={wb}/>);
+  const wbWithId=wb.map((w,i)=>({...w,id:w.id||`word_${i}`,phrase:w.phrase||null}));
+  ReactDOM.createRoot(document.getElementById("root")).render(
+    <App fillBank={fb} sortBank={sb} wordBank={wbWithId}/>
+  );
 }).catch(err=>{
-  document.getElementById("root").innerHTML=`<div style="color:red;padding:24px;font-family:sans-serif;max-width:500px;margin:40px auto;"><h2>⚠️ 読み込みエラー</h2><p>以下のファイルをindex.htmlと同じフォルダに置いてください：</p><ul><li>questions.json（穴埋め問題）</li><li>sort_questions.json（並べ替え問題）</li><li>words.json（単語問題）</li></ul><pre>${err}</pre></div>`;
+  document.getElementById("root").innerHTML=`
+    <div style="color:#1A1A2E;padding:24px;font-family:sans-serif;max-width:500px;margin:40px auto;background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.12);">
+      <h2 style="color:#DC2626;">⚠️ 読み込みエラー</h2>
+      <p>以下のファイルを<strong>index.html</strong>と同じフォルダに置いてください：</p>
+      <ul style="line-height:2.2;">
+        <li>questions.json（穴埋め問題）</li>
+        <li>sort_questions.json（並べ替え問題）</li>
+        <li>words.json（単語問題）</li>
+      </ul>
+      <pre style="background:#FEE2E2;padding:12px;border-radius:8px;font-size:11px;overflow:auto;">${err}</pre>
+    </div>`;
 });
 </script>
 </body>

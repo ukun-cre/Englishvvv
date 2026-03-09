@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#FF6B35">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="はんたいことばをおぼえよう！3〜6さいのおともだちのためのちびっこクイズ">
+  <title>はんたいことば！ 🐶🐱</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+
+<!-- ========== MENU SCREEN ========== -->
+<section id="screen-menu" class="screen active" aria-label="メインメニュー">
+  <div class="menu-bg" aria-hidden="true">
+    <div class="bg-star s1">★</div><div class="bg-star s2">✦</div>
+    <div class="bg-star s3">★</div><div class="bg-star s4">✦</div>
+    <div class="bg-star s5">★</div><div class="bg-star s6">✦</div>
+    <div class="bg-bubble b1"></div><div class="bg-bubble b2"></div>
+    <div class="bg-bubble b3"></div>
+  </div>
+
+  <div class="menu-title-wrap">
+    <div class="menu-title-badge">
+      <p class="menu-title-sub">みてみて！</p>
+      <h1 class="menu-title">はんたいことば！</h1>
+      <p class="menu-title-sub2">いぬくん と ねこちゃんと あそぼう♪</p>
+    </div>
+  </div>
+
+  <div class="menu-chars" id="menu-chars" aria-hidden="true">
+    <!-- populated by JS -->
+  </div>
+
+  <nav class="menu-nav" aria-label="メニューボタン">
+    <button class="btn-menu btn-play" onclick="App.startGame()" aria-label="ゲームをはじめる">
+      <span class="btn-icon">▶</span>
+      <span class="btn-txt">あそぶ！</span>
+    </button>
+    <div class="menu-row2">
+      <button class="btn-menu btn-set" onclick="App.goSettings()" aria-label="せってい">
+        <span class="btn-icon">⚙</span>
+        <span class="btn-txt">せってい</span>
+      </button>
+      <button class="btn-menu btn-rec" onclick="App.goRecords()" aria-label="きろく">
+        <span class="btn-icon">🏆</span>
+        <span class="btn-txt">きろく</span>
+      </button>
+    </div>
+  </nav>
+</section>
+
+<!-- ========== QUIZ SCREEN ========== -->
+<section id="screen-quiz" class="screen" aria-label="クイズ">
+  <header class="quiz-hdr">
+    <button class="btn-back" onclick="App.goMenu()" aria-label="メニューにもどる">◀ もどる</button>
+    <div class="quiz-streak" aria-live="polite" aria-label="れんぞくせいかい">
+      <span class="streak-fire" id="streak-fire" aria-hidden="true">🔥</span>
+      <span class="streak-label">れんぞく</span>
+      <span class="streak-val" id="streak-val">0</span>
+    </div>
+    <div class="quiz-stage-badge">
+      ステージ<span id="stage-num">1</span>
+    </div>
+  </header>
+
+  <main class="quiz-body">
+    <div class="quiz-chars" id="quiz-chars" aria-hidden="true">
+      <!-- Dog + Cat rendered by JS -->
+    </div>
+
+    <div class="question-card">
+      <div class="q-illustration" id="q-illustration" aria-hidden="true">
+        <!-- Concept SVG rendered by JS -->
+      </div>
+      <div class="q-word-area">
+        <p class="q-word" id="q-word" aria-live="polite"></p>
+        <p class="q-prompt">の　はんたいは？</p>
+      </div>
+    </div>
+
+    <div class="answers-grid" id="answers-grid" role="group" aria-label="こたえをえらぼう">
+      <!-- Answer buttons rendered by JS -->
+    </div>
+  </main>
+
+  <div class="feedback-overlay" id="feedback-overlay" aria-live="assertive" role="alert"></div>
+</section>
+
+<!-- ========== SETTINGS SCREEN ========== -->
+<section id="screen-settings" class="screen" aria-label="せってい">
+  <header class="sub-hdr">
+    <button class="btn-back" onclick="App.goMenu()">◀ もどる</button>
+    <h2 class="sub-title">⚙ せってい</h2>
+  </header>
+
+  <div class="settings-body">
+    <div class="setting-card">
+      <div class="setting-lbl">
+        <span class="setting-icon">🔊</span>
+        <span class="setting-name">こえのガイド</span>
+      </div>
+      <button class="toggle-btn" id="voice-toggle"
+              onclick="App.toggleVoice()"
+              role="switch" aria-checked="true" aria-label="こえガイドのON/OFF">
+        <span class="toggle-inner" id="voice-status">ON</span>
+      </button>
+    </div>
+
+    <div class="setting-card">
+      <div class="setting-lbl">
+        <span class="setting-icon">⭐</span>
+        <span class="setting-name">むずかしさ</span>
+      </div>
+      <div class="diff-btns" role="group" aria-label="むずかしさをえらぼう">
+        <button class="diff-btn diff-active" id="diff-easy" onclick="App.setDifficulty('easy')">
+          かんたん<br><small>２つからえらぶ</small>
+        </button>
+        <button class="diff-btn" id="diff-hard" onclick="App.setDifficulty('hard')">
+          むずかしい<br><small>３つからえらぶ</small>
+        </button>
+      </div>
+    </div>
+
+    <div class="setting-card">
+      <div class="setting-lbl">
+        <span class="setting-icon">🔄</span>
+        <span class="setting-name">きろくをリセット</span>
+      </div>
+      <button class="btn-reset" onclick="App.resetRecords()">リセット</button>
+    </div>
+  </div>
+
+  <div class="settings-chars" id="settings-chars" aria-hidden="true"></div>
+</section>
+
+<!-- ========== RECORDS SCREEN ========== -->
+<section id="screen-records" class="screen" aria-label="きろく">
+  <header class="sub-hdr">
+    <button class="btn-back" onclick="App.goMenu()">◀ もどる</button>
+    <h2 class="sub-title">🏆 きろく</h2>
+  </header>
+  <div class="records-body" id="records-body">
+    <!-- populated by JS -->
+  </div>
+</section>
+
+<!-- ========== STAGE CLEAR SCREEN ========== -->
+<section id="screen-clear" class="screen" aria-label="ステージクリア">
+  <div class="clear-body" id="clear-body">
+    <!-- populated by JS -->
+  </div>
+</section>
+
+<!-- ========== OVERLAYS ========== -->
+<div id="confetti-layer" aria-hidden="true"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
